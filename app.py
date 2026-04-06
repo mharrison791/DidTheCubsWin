@@ -26,24 +26,6 @@ def get_cubs_games(game_date: date) -> list:
     return dates[0].get("games", [])
 
 
-def get_cubs_record(season: int) -> str:
-    """Fetch the Cubs' season record."""
-    url = f"{MLB_API_BASE}/teams/{CUBS_TEAM_ID}/stats"
-    params = {
-        "stats": "season",
-        "season": season,
-    }
-    resp = requests.get(url, params=params, timeout=10)
-    resp.raise_for_status()
-    data = resp.json()
-    stats = data.get("stats", [])
-    if stats:
-        stat = stats[0].get("splits", [])[0].get("stat", {})
-        wins = stat.get("wins", 0)
-        losses = stat.get("losses", 0)
-        return f"{wins}-{losses}"
-    return "N/A"
-
 
 # ── Parsing ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +37,11 @@ def parse_game(game: dict) -> dict:
 
     home_id = home.get("team", {}).get("id")
     cubs_are_home = home_id == CUBS_TEAM_ID
+
+    # leagueRecord reflects the record AFTER this game
+    cubs_side = home if cubs_are_home else away
+    lr = cubs_side.get("leagueRecord", {})
+    cubs_record = f"{lr.get('wins', '?')}-{lr.get('losses', '?')}" if lr else None
 
     home_name = home.get("team", {}).get("name", "Home")
     away_name = away.get("team", {}).get("name", "Away")
@@ -86,6 +73,7 @@ def parse_game(game: dict) -> dict:
         "opp_score": opp_score,
         "opp_name": opp_name,
         "cubs_won": cubs_won,
+        "cubs_record": cubs_record,
         "winner": winner,
         "loser": loser,
         "save": save,
@@ -230,15 +218,7 @@ st.set_page_config(page_title="Did the Cubs Win?", page_icon="⚾", layout="cent
 st.title("⚾ Did the Cubs Win Last Night?")
 
 yesterday = date.today() - timedelta(days=1)
-season = 2023  # Use 2023 for testing as 2026 data may not be available
 st.caption(f"Checking results for **{yesterday.strftime('%A, %B %d, %Y')}**")
-
-# Fetch and display season record
-try:
-    record = get_cubs_record(season)
-    st.caption(f"Season record: {record}")
-except requests.RequestException:
-    st.caption("Season record: Unable to fetch")
 
 st.divider()
 
@@ -255,6 +235,13 @@ if not games:
 
 parsed = [parse_game(g) for g in games]
 is_doubleheader = len(parsed) > 1
+
+# Season record — taken from the last final game (reflects record after all games played)
+final_parsed = [g for g in parsed if g["status"] == "Final"]
+season_record = final_parsed[-1]["cubs_record"] if final_parsed else None
+if season_record:
+    st.caption(f"Season record: **{season_record}**")
+
 
 if is_doubleheader:
     wins = sum(1 for g in parsed if g["status"] == "Final" and g["cubs_won"])
