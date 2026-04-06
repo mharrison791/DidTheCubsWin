@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"https://statsapi.mlb.com/api/v1/schedule?teamId=112&date=2025-09-15&sportId=1&hydrate=linescore,decisions\")",
+      "Bash(curl -s \"https://statsapi.mlb.com/api/v1/game/776318/boxscore\")",
+      "Bash(curl -s \"https://statsapi.mlb.com/api/v1/game/776318/playByPlay\")",
+      "Bash(python3 -c \":*)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); away=d[''''teams''''][''''away'''']; print\\(''''=== away.pitchers ===''''\\); print\\(json.dumps\\(away[''''pitchers''''], indent=2\\)\\); print\\(\\); print\\(''''=== away.batters ===''''\\); print\\(json.dumps\\(away[''''batters''''][:5], indent=2\\)\\)\")",
+      "Bash(where python:*)",
+      "Bash(node -e \":*)",
+      "Bash(where node:*)",
+      "Bash(where nodejs:*)",
+      "Bash(curl -s \"https://statsapi.mlb.com/api/v1/people/592791/stats?stats=gameLog&season=2025&group=pitching&sportId=1\")"
+    ]
+  }
+}
