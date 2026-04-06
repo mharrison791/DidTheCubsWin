@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import pandas as pd
 from datetime import date, timedelta
 
 CUBS_TEAM_ID = 112
@@ -83,42 +82,86 @@ def parse_game(game: dict) -> dict:
     }
 
 
-def build_linescore_df(linescore: dict, home_name: str, away_name: str) -> pd.DataFrame:
-    """Build a linescore DataFrame (innings + R/H/E)."""
+def build_linescore_html(linescore: dict, home_name: str, away_name: str) -> str:
+    """Render the linescore as a self-contained HTML table (no scrollbar, grey R/H/E)."""
     innings = linescore.get("innings", [])
     num_innings = max(len(innings), 9)
 
-    home_runs = [""] * num_innings
-    away_runs = [""] * num_innings
+    home_runs: list = [""] * num_innings
+    away_runs: list = [""] * num_innings
 
     for inn in innings:
         idx = inn.get("num", 1) - 1
         if idx < num_innings:
-            home_runs[idx] = inn.get("home", {}).get("runs", "X")
-            away_runs[idx] = inn.get("away", {}).get("runs", "X")
+            hr = inn.get("home", {}).get("runs")
+            ar = inn.get("away", {}).get("runs")
+            home_runs[idx] = str(hr) if hr is not None else "X"
+            away_runs[idx] = str(ar) if ar is not None else "X"
 
-    # Replace empty strings for innings not yet played with "-"
     home_runs = [r if r != "" else "-" for r in home_runs]
     away_runs = [r if r != "" else "-" for r in away_runs]
 
     totals_home = linescore.get("teams", {}).get("home", {})
     totals_away = linescore.get("teams", {}).get("away", {})
 
-    inning_cols = [str(i + 1) for i in range(num_innings)]
-    home_row = home_runs + [
-        totals_home.get("runs", ""),
-        totals_home.get("hits", ""),
-        totals_home.get("errors", ""),
-    ]
-    away_row = away_runs + [
-        totals_away.get("runs", ""),
-        totals_away.get("hits", ""),
-        totals_away.get("errors", ""),
-    ]
+    def td(val, extra_class=""):
+        cls = f' class="{extra_class}"' if extra_class else ""
+        return f"<td{cls}>{val}</td>"
 
-    cols = inning_cols + ["R", "H", "E"]
-    df = pd.DataFrame([away_row, home_row], columns=cols, index=[away_name, home_name])
-    return df
+    def row(team_name, runs, totals):
+        cells = f'<td class="team">{team_name}</td>'
+        cells += "".join(td(r) for r in runs)
+        cells += td(totals.get("runs", ""), "rhe")
+        cells += td(totals.get("hits", ""), "rhe")
+        cells += td(totals.get("errors", ""), "rhe")
+        return f"<tr>{cells}</tr>"
+
+    inning_headers = "".join(f"<th>{i + 1}</th>" for i in range(num_innings))
+    header_row = f'<tr><th class="team"></th>{inning_headers}<th class="rhe-h">R</th><th class="rhe-h">H</th><th class="rhe-h">E</th></tr>'
+    away_row = row(away_name, away_runs, totals_away)
+    home_row = row(home_name, home_runs, totals_home)
+
+    return f"""
+<style>
+  .ls {{
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 0.83rem;
+    font-family: monospace;
+  }}
+  .ls th, .ls td {{
+    text-align: center;
+    padding: 5px 3px;
+    border: 1px solid #e0e0e0;
+    white-space: nowrap;
+    overflow: hidden;
+  }}
+  .ls .team {{
+    text-align: left;
+    font-weight: 600;
+    padding-left: 8px;
+    width: 22%;
+    text-overflow: ellipsis;
+  }}
+  .ls th {{
+    background-color: #f0f0f0;
+    font-weight: 600;
+  }}
+  .ls .rhe-h {{
+    background-color: #c8c8c8;
+    font-weight: 700;
+  }}
+  .ls .rhe {{
+    background-color: #e0e0e0;
+    font-weight: 700;
+  }}
+</style>
+<table class="ls">
+  <thead>{header_row}</thead>
+  <tbody>{away_row}{home_row}</tbody>
+</table>
+"""
 
 
 # ── Rendering ────────────────────────────────────────────────────────────────
@@ -158,11 +201,7 @@ def render_game(info: dict, game_num: int | None = None):
     linescore = info.get("linescore", {})
     if linescore.get("innings"):
         st.markdown("**Linescore**")
-        df = build_linescore_df(linescore, info["home_name"], info["away_name"])
-        # Bold R/H/E columns via styling
-        def highlight_rhe(col):
-            return ["font-weight: bold" if col.name in ("R", "H", "E") else "" for _ in col]
-        st.dataframe(df.style.apply(highlight_rhe), use_container_width=True)
+        st.html(build_linescore_html(linescore, info["home_name"], info["away_name"]))
 
     # Decisions
     if status == "Final":
