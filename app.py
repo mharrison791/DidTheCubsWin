@@ -26,12 +26,23 @@ def get_cubs_games(game_date: date) -> list:
     return dates[0].get("games", [])
 
 
-def get_boxscore(game_pk: int) -> dict:
-    """Fetch the full box score for a game."""
-    url = f"{MLB_API_BASE}/game/{game_pk}/boxscore"
-    resp = requests.get(url, timeout=10)
+def get_cubs_record(season: int) -> str:
+    """Fetch the Cubs' season record."""
+    url = f"{MLB_API_BASE}/teams/{CUBS_TEAM_ID}/stats"
+    params = {
+        "stats": "season",
+        "season": season,
+    }
+    resp = requests.get(url, params=params, timeout=10)
     resp.raise_for_status()
-    return resp.json()
+    data = resp.json()
+    stats = data.get("stats", [])
+    if stats:
+        stat = stats[0].get("splits", [])[0].get("stat", {})
+        wins = stat.get("wins", 0)
+        losses = stat.get("losses", 0)
+        return f"{wins}-{losses}"
+    return "N/A"
 
 
 # ── Parsing ──────────────────────────────────────────────────────────────────
@@ -175,17 +186,12 @@ def render_game(info: dict, game_num: int | None = None):
     # Header
     if status == "Final":
         if cubs_won:
-            icon = "✅"
-            verdict = "Cubs win!"
-            color_fn = st.success
+            st.markdown(f"<div style='background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; border: 1px solid #c3e6cb;'>### ✅ {label} — Cubs win! <span style='background-color: white; border: 1px solid #ddd; padding: 2px 5px; margin-left: 10px; display: inline-block;'><span style='color: navy; font-weight: bold;'>W</span></span></div>", unsafe_allow_html=True)
         else:
-            icon = "❌"
-            verdict = "Cubs lose."
-            color_fn = st.error
-        color_fn(f"### {icon} {label}  —  {verdict}")
+            st.error(f"### ❌ {label} — Cubs lose.")
     else:
         st.warning(
-            f"### ⏳ {label}  —  {info['detailed_status']}"
+            f"### ⏳ {label} — {info['detailed_status']}"
         )
 
     # Score summary
@@ -224,7 +230,16 @@ st.set_page_config(page_title="Did the Cubs Win?", page_icon="⚾", layout="cent
 st.title("⚾ Did the Cubs Win Last Night?")
 
 yesterday = date.today() - timedelta(days=1)
+season = 2023  # Use 2023 for testing as 2026 data may not be available
 st.caption(f"Checking results for **{yesterday.strftime('%A, %B %d, %Y')}**")
+
+# Fetch and display season record
+try:
+    record = get_cubs_record(season)
+    st.caption(f"Season record: {record}")
+except requests.RequestException:
+    st.caption("Season record: Unable to fetch")
+
 st.divider()
 
 with st.spinner("Fetching game data..."):
@@ -251,8 +266,3 @@ for i, info in enumerate(parsed):
     render_game(info, game_num=(i + 1) if is_doubleheader else None)
     if is_doubleheader and i < len(parsed) - 1:
         st.divider()
-
-# Balloons only if all final games were wins
-final_games = [g for g in parsed if g["status"] == "Final"]
-if final_games and all(g["cubs_won"] for g in final_games):
-    st.balloons()
