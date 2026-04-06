@@ -9,7 +9,14 @@ def _render_game(info: dict, game_num: int | None = None):
 
     if status == "Final":
         if info["cubs_won"]:
-            st.success(f"### ✅ {label}Cubs win!")
+            st.markdown(
+                f"""<div style="background-color:#d4edda;border:1px solid #c3e6cb;border-radius:0.375rem;padding:1rem 1.25rem;display:flex;align-items:center;gap:1rem;">
+                  <span style="font-size:1.3rem;font-weight:700;color:#155724;">✅ {label}Cubs win!</span>
+                  <img src="https://cdn.dribbble.com/userupload/21006334/file/original-de1dba822571c54c70632d4f7d765d87.gif"
+                       style="height:60px;width:auto;border-radius:4px;" alt="Fly the W">
+                </div>""",
+                unsafe_allow_html=True,
+            )
         else:
             st.error(f"### ❌ {label}Cubs lose.")
     else:
