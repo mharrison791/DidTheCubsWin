@@ -12,6 +12,7 @@ from utils import (
     pitcher_summary,
     build_pitch_usage_html,
     build_pitch_comparison_html,
+    render_nav,
 )
 
 
@@ -108,6 +109,7 @@ def _render_pitcher(starter: dict, game_pk: int, season: int):
 # ── Page ──────────────────────────────────────────────────────────────────────
 
 st.title("📋 Pitcher Report")
+render_nav()
 
 yesterday = date.today() - timedelta(days=1)
 season    = yesterday.year
