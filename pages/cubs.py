@@ -8,6 +8,7 @@ from utils import (
     get_team_colors,
     render_game_result,
     render_pitcher_section,
+    render_hitter_section,
     render_next_game,
 )
 
@@ -59,19 +60,31 @@ for i, info in enumerate(parsed):
 if final_parsed and all(g["team_won"] for g in final_parsed):
     st.balloons()
 
-# ── Pitcher Report ─────────────────────────────────────────────────────────────
+# ── Hitters & Pitcher Report ───────────────────────────────────────────────────
 if final_parsed:
     st.divider()
     if is_dh:
         tabs = st.tabs([f"Game {i+1}" for i in range(len(final_parsed))])
         for tab, info in zip(tabs, final_parsed):
             with tab:
+                render_hitter_section(
+                    info,
+                    section_header="🏏 Cubs Hitters",
+                    header_color=CUBS_PRIMARY,
+                )
+                st.divider()
                 render_pitcher_section(
                     info, season,
                     section_header="🐻 Cubs Starting Pitcher",
                     header_color=CUBS_PRIMARY,
                 )
     else:
+        render_hitter_section(
+            final_parsed[0],
+            section_header="🏏 Cubs Hitters",
+            header_color=CUBS_PRIMARY,
+        )
+        st.divider()
         render_pitcher_section(
             final_parsed[0], season,
             section_header="🐻 Cubs Starting Pitcher",
