@@ -27,6 +27,45 @@ PITCH_COLORS = {
 # Pitch codes to skip (non-pitches or intentional balls)
 SKIP_CODES = {"UN", "PO", "IN", "AB", "NP"}
 
+# MLB team logos by team ID (ESPN CDN)
+TEAM_LOGOS: dict[int, str] = {
+    108: "https://a.espncdn.com/i/teamlogos/mlb/500/laa.png",
+    109: "https://a.espncdn.com/i/teamlogos/mlb/500/ari.png",
+    110: "https://a.espncdn.com/i/teamlogos/mlb/500/bal.png",
+    111: "https://a.espncdn.com/i/teamlogos/mlb/500/bos.png",
+    112: "https://a.espncdn.com/i/teamlogos/mlb/500/chc.png",
+    113: "https://a.espncdn.com/i/teamlogos/mlb/500/cin.png",
+    114: "https://a.espncdn.com/i/teamlogos/mlb/500/cle.png",
+    115: "https://a.espncdn.com/i/teamlogos/mlb/500/col.png",
+    116: "https://a.espncdn.com/i/teamlogos/mlb/500/det.png",
+    117: "https://a.espncdn.com/i/teamlogos/mlb/500/hou.png",
+    118: "https://a.espncdn.com/i/teamlogos/mlb/500/kc.png",
+    119: "https://a.espncdn.com/i/teamlogos/mlb/500/lad.png",
+    120: "https://a.espncdn.com/i/teamlogos/mlb/500/wsh.png",
+    121: "https://a.espncdn.com/i/teamlogos/mlb/500/nym.png",
+    133: "https://a.espncdn.com/i/teamlogos/mlb/500/oak.png",
+    134: "https://a.espncdn.com/i/teamlogos/mlb/500/pit.png",
+    135: "https://a.espncdn.com/i/teamlogos/mlb/500/sd.png",
+    136: "https://a.espncdn.com/i/teamlogos/mlb/500/sea.png",
+    137: "https://a.espncdn.com/i/teamlogos/mlb/500/sf.png",
+    138: "https://a.espncdn.com/i/teamlogos/mlb/500/stl.png",
+    139: "https://a.espncdn.com/i/teamlogos/mlb/500/tb.png",
+    140: "https://a.espncdn.com/i/teamlogos/mlb/500/tex.png",
+    141: "https://a.espncdn.com/i/teamlogos/mlb/500/tor.png",
+    142: "https://a.espncdn.com/i/teamlogos/mlb/500/min.png",
+    143: "https://a.espncdn.com/i/teamlogos/mlb/500/phi.png",
+    144: "https://a.espncdn.com/i/teamlogos/mlb/500/atl.png",
+    145: "https://a.espncdn.com/i/teamlogos/mlb/500/chw.png",
+    146: "https://a.espncdn.com/i/teamlogos/mlb/500/mia.png",
+    147: "https://a.espncdn.com/i/teamlogos/mlb/500/nyy.png",
+    158: "https://a.espncdn.com/i/teamlogos/mlb/500/mil.png",
+}
+
+
+def team_logo_url(team_id: int | None) -> str:
+    """Return ESPN logo URL for a team by MLB team ID, or empty string if unknown."""
+    return TEAM_LOGOS.get(team_id or 0, "")
+
 
 def pitch_color(code: str) -> str:
     return PITCH_COLORS.get(code, "#aab7b8")
@@ -129,6 +168,33 @@ def get_previous_game(pitcher_id: int, current_game_pk: int, season: int) -> tup
     )
 
 
+@st.cache_data(ttl=300)
+def get_next_cubs_game(date_str: str) -> dict | None:
+    """Return info about the Cubs' game on date_str, or None if off day."""
+    resp = requests.get(
+        f"{MLB_API_BASE}/schedule",
+        params={"teamId": CUBS_TEAM_ID, "date": date_str, "sportId": 1},
+        timeout=10,
+    )
+    resp.raise_for_status()
+    dates = resp.json().get("dates", [])
+    games = dates[0].get("games", []) if dates else []
+    if not games:
+        return None
+    game = games[0]
+    teams = game.get("teams", {})
+    home, away = teams.get("home", {}), teams.get("away", {})
+    home_id = home.get("team", {}).get("id")
+    cubs_are_home = home_id == CUBS_TEAM_ID
+    opp = away if cubs_are_home else home
+    return {
+        "opp_name": opp.get("team", {}).get("name", "Unknown"),
+        "opp_id": opp.get("team", {}).get("id"),
+        "cubs_are_home": cubs_are_home,
+        "game_time_utc": game.get("gameDate", ""),
+    }
+
+
 # ── Parsing ───────────────────────────────────────────────────────────────────
 
 def parse_game(game: dict) -> dict:
@@ -149,6 +215,7 @@ def parse_game(game: dict) -> dict:
     home_name = home.get("team", {}).get("name", "Home")
     away_name = away.get("team", {}).get("name", "Away")
     opp_name  = away_name if cubs_are_home else home_name
+    away_id   = away.get("team", {}).get("id")
 
     decisions = game.get("decisions", {})
     return {
@@ -158,6 +225,8 @@ def parse_game(game: dict) -> dict:
         "cubs_are_home":   cubs_are_home,
         "home_name":       home_name,
         "away_name":       away_name,
+        "home_id":         home_id,
+        "away_id":         away_id,
         "home_score":      home_score,
         "away_score":      away_score,
         "cubs_score":      cubs_score,
@@ -261,7 +330,13 @@ def pitcher_summary(name: str, stats: dict, usage: dict) -> str:
 
 # ── HTML builders ─────────────────────────────────────────────────────────────
 
-def build_linescore_html(linescore: dict, home_name: str, away_name: str) -> str:
+def build_linescore_html(
+    linescore: dict,
+    home_name: str,
+    away_name: str,
+    home_id: int | None = None,
+    away_id: int | None = None,
+) -> str:
     innings = linescore.get("innings", [])
     n = max(len(innings), 9)
     home_r = [""] * n
@@ -283,8 +358,15 @@ def build_linescore_html(linescore: dict, home_name: str, away_name: str) -> str
     def td(v, cls=""):
         return f'<td{" class=\"" + cls + "\"" if cls else ""}>{v}</td>'
 
-    def row(name, runs, tot):
-        c = f'<td class="team">{name}</td>'
+    def _logo_tag(team_id):
+        url = team_logo_url(team_id)
+        if not url:
+            return ""
+        return f'<img src="{url}" style="height:18px;width:auto;vertical-align:middle;margin-right:4px;" alt="">'
+
+    def row(name, runs, tot, team_id=None):
+        logo = _logo_tag(team_id)
+        c = f'<td class="team">{logo}{name}</td>'
         c += "".join(td(r) for r in runs)
         c += td(tot.get("runs",""), "rhe") + td(tot.get("hits",""), "rhe") + td(tot.get("errors",""), "rhe")
         return f"<tr>{c}</tr>"
@@ -302,7 +384,7 @@ def build_linescore_html(linescore: dict, home_name: str, away_name: str) -> str
 </style>
 <table class="ls">
   <thead>{hrow}</thead>
-  <tbody>{row(away_name, away_r, ta)}{row(home_name, home_r, th)}</tbody>
+  <tbody>{row(away_name, away_r, ta, away_id)}{row(home_name, home_r, th, home_id)}</tbody>
 </table>"""
 
 
@@ -396,3 +478,12 @@ def build_pitch_comparison_html(now: dict, prev: dict, prev_label: str) -> str:
   </tr></thead>
   <tbody>{rows}</tbody>
 </table>"""
+
+
+def render_nav() -> None:
+    """Render a horizontal top navigation bar for all pages."""
+    col1, col2, *_ = st.columns([1, 2, 3])
+    with col1:
+        st.page_link("pages/home.py", label="🏠 Home", use_container_width=True)
+    with col2:
+        st.page_link("pages/pitcher_report.py", label="⚾ Pitcher Report", use_container_width=True)
