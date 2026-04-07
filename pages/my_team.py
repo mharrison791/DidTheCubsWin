@@ -7,6 +7,7 @@ from utils import (
     parse_game,
     render_game_result,
     render_pitcher_section,
+    render_hitter_section,
     render_next_game,
 )
 
@@ -71,19 +72,31 @@ for i, info in enumerate(parsed):
     if is_dh and i < len(parsed) - 1:
         st.divider()
 
-# ── Pitcher Report ─────────────────────────────────────────────────────────────
+# ── Hitters & Pitcher Report ───────────────────────────────────────────────────
 if final_parsed:
     st.divider()
     if is_dh:
         tabs = st.tabs([f"Game {i+1}" for i in range(len(final_parsed))])
         for tab, info in zip(tabs, final_parsed):
             with tab:
+                render_hitter_section(
+                    info,
+                    section_header=f"🏏 {team_name} Hitters",
+                    header_color=primary,
+                )
+                st.divider()
                 render_pitcher_section(
                     info, season,
                     section_header=f"⚾ {team_name} Starting Pitcher",
                     header_color=primary,
                 )
     else:
+        render_hitter_section(
+            final_parsed[0],
+            section_header=f"🏏 {team_name} Hitters",
+            header_color=primary,
+        )
+        st.divider()
         render_pitcher_section(
             final_parsed[0], season,
             section_header=f"⚾ {team_name} Starting Pitcher",

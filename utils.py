@@ -539,13 +539,15 @@ def build_pitch_comparison_html(now: dict, prev: dict, prev_label: str) -> str:
                 badge = f'<span style="color:#e74c3c;font-size:.75rem">▼{abs(delta)}pp</span>'
             else:
                 badge = f'<span style="color:#999;font-size:.75rem">{delta:+d}pp</span>'
-            prev_cell = f'{cnt_p}&thinsp;({pct_p}%)&nbsp;{badge}'
+            now_cell  = f'{cnt_n}&thinsp;({pct_n}%)&nbsp;{badge}'
+            prev_cell = f'{cnt_p}&thinsp;({pct_p}%)'
         else:
+            now_cell  = f'{cnt_n}&thinsp;({pct_n}%)'
             prev_cell = '<span style="color:#bbb">—</span>'
 
         rows += f"""<tr>
           <td class="cpn"><span class="cpd" style="background:{col}"></span>{desc}</td>
-          <td class="cpv">{cnt_n}&thinsp;({pct_n}%)</td>
+          <td class="cpv">{now_cell}</td>
           <td class="cpv">{prev_cell}</td></tr>"""
     return f"""
 <style>
@@ -568,6 +570,131 @@ def build_pitch_comparison_html(now: dict, prev: dict, prev_label: str) -> str:
 # ── Rendering helpers ─────────────────────────────────────────────────────────
 
 FLY_THE_W_GIF = "https://cdn.dribbble.com/userupload/21006334/file/original-de1dba822571c54c70632d4f7d765d87.gif"
+
+
+def hitter_summary(boxscore: dict, side: str) -> str:
+    """Generate a narrative summary of hitter performance for one side."""
+    team     = boxscore.get("teams", {}).get(side, {})
+    batter_ids = team.get("batters", [])
+    players  = team.get("players", {})
+    team_name = team.get("team", {}).get("name", "The team")
+
+    rows = []
+    for pid in batter_ids:
+        p     = players.get(f"ID{pid}", {})
+        stats = p.get("stats", {}).get("batting", {})
+        if not stats:
+            continue
+        ab  = int(stats.get("atBats", 0))
+        h   = int(stats.get("hits", 0))
+        hr  = int(stats.get("homeRuns", 0))
+        rbi = int(stats.get("rbi", 0))
+        bb  = int(stats.get("baseOnBalls", 0))
+        k   = int(stats.get("strikeOuts", 0))
+        d   = int(stats.get("doubles", 0))
+        t   = int(stats.get("triples", 0))
+        sb  = int(stats.get("stolenBases", 0))
+        if ab + bb == 0:
+            continue
+        name = p.get("person", {}).get("fullName", "Unknown")
+        rows.append(dict(name=name, ab=ab, h=h, hr=hr, rbi=rbi, bb=bb, k=k, d=d, t=t, sb=sb))
+
+    if not rows:
+        return "No batting data available for this game."
+
+    tot_ab  = sum(r["ab"]  for r in rows)
+    tot_h   = sum(r["h"]   for r in rows)
+    tot_hr  = sum(r["hr"]  for r in rows)
+    tot_rbi = sum(r["rbi"] for r in rows)
+    tot_k   = sum(r["k"]   for r in rows)
+
+    # Team summary sentence
+    extras = []
+    if tot_hr == 1:
+        extras.append("1 home run")
+    elif tot_hr > 1:
+        extras.append(f"{tot_hr} home runs")
+    if tot_rbi:
+        extras.append(f"{tot_rbi} RBI")
+
+    summary = f"**{team_name}** went **{tot_h}-for-{tot_ab}**"
+    if extras:
+        summary += " with " + " and ".join(extras)
+    summary += f", striking out {tot_k} time{'s' if tot_k != 1 else ''}."
+
+    # Notable individual performers
+    def _score(r):
+        return r["h"] * 2 + r["hr"] * 3 + r["rbi"] * 2 + r["bb"]
+
+    notable = sorted(
+        [r for r in rows if r["h"] >= 2 or r["hr"] >= 1 or r["rbi"] >= 2],
+        key=_score, reverse=True,
+    )[:4]
+
+    sentences = [summary]
+    for r in notable:
+        highlights = []
+        if r["hr"] == 1:
+            highlights.append("a home run")
+        elif r["hr"] > 1:
+            highlights.append(f"{r['hr']} home runs")
+        if r["d"] >= 2:
+            highlights.append(f"{r['d']} doubles")
+        elif r["d"] == 1 and not r["hr"]:
+            highlights.append("a double")
+        if r["t"]:
+            highlights.append("a triple")
+        if r["rbi"] >= 2:
+            highlights.append(f"{r['rbi']} RBI")
+        if r["sb"]:
+            highlights.append("a stolen base")
+
+        hit_str = f"{r['h']}-for-{r['ab']}" if r["ab"] else None
+        if hit_str and highlights:
+            sentence = f"{r['name']} went {hit_str} with {', '.join(highlights)}."
+        elif hit_str and r["h"] >= 2:
+            sentence = f"{r['name']} went {hit_str}."
+        elif highlights:
+            sentence = f"{r['name']} contributed {', '.join(highlights)}."
+        else:
+            continue
+        sentences.append(sentence)
+
+    # Fallback if no standouts
+    if len(sentences) == 1:
+        best = max(rows, key=lambda r: (r["h"], r["rbi"], r["hr"]))
+        if best["h"] > 0:
+            sentences.append(
+                f"The offense was quiet — {best['name']} led with "
+                f"{best['h']} hit{'s' if best['h'] > 1 else ''}."
+            )
+        else:
+            sentences.append("It was a tough night at the plate — no batter recorded a hit.")
+
+    return " ".join(sentences)
+
+
+def render_hitter_section(
+    info: dict,
+    section_header: str = "Hitters",
+    header_color: str = "#0E3386",
+) -> None:
+    """Render the hitter narrative section."""
+    team_side = "home" if info["team_is_home"] else "away"
+
+    st.markdown(
+        f"<h3 style='color:{header_color};margin-top:0;'>{section_header}</h3>",
+        unsafe_allow_html=True,
+    )
+
+    with st.spinner("Loading batting data…"):
+        try:
+            boxscore = get_boxscore(info["game_pk"])
+        except Exception as e:
+            st.error(f"Could not load boxscore: {e}")
+            return
+
+    st.info(hitter_summary(boxscore, team_side))
 
 
 def render_game_result(
