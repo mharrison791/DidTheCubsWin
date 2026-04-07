@@ -539,13 +539,15 @@ def build_pitch_comparison_html(now: dict, prev: dict, prev_label: str) -> str:
                 badge = f'<span style="color:#e74c3c;font-size:.75rem">▼{abs(delta)}pp</span>'
             else:
                 badge = f'<span style="color:#999;font-size:.75rem">{delta:+d}pp</span>'
-            prev_cell = f'{cnt_p}&thinsp;({pct_p}%)&nbsp;{badge}'
+            now_cell  = f'{cnt_n}&thinsp;({pct_n}%)&nbsp;{badge}'
+            prev_cell = f'{cnt_p}&thinsp;({pct_p}%)'
         else:
+            now_cell  = f'{cnt_n}&thinsp;({pct_n}%)'
             prev_cell = '<span style="color:#bbb">—</span>'
 
         rows += f"""<tr>
           <td class="cpn"><span class="cpd" style="background:{col}"></span>{desc}</td>
-          <td class="cpv">{cnt_n}&thinsp;({pct_n}%)</td>
+          <td class="cpv">{now_cell}</td>
           <td class="cpv">{prev_cell}</td></tr>"""
     return f"""
 <style>
