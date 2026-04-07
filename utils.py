@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from datetime import datetime
+from datetime import date, timedelta, datetime, timezone
 
 CUBS_TEAM_ID = 112
 MLB_API_BASE = "https://statsapi.mlb.com/api/v1"
@@ -67,6 +67,79 @@ def team_logo_url(team_id: int | None) -> str:
     return TEAM_LOGOS.get(team_id or 0, "")
 
 
+# MLB team primary/secondary brand colors by team ID
+TEAM_COLORS: dict[int, dict] = {
+    108: {"primary": "#BA0021", "secondary": "#003263"},  # Angels
+    109: {"primary": "#A71930", "secondary": "#E3D4AD"},  # Diamondbacks
+    110: {"primary": "#DF4601", "secondary": "#000000"},  # Orioles
+    111: {"primary": "#BD3039", "secondary": "#0C2340"},  # Red Sox
+    112: {"primary": "#0E3386", "secondary": "#CC3433"},  # Cubs
+    113: {"primary": "#C6011F", "secondary": "#000000"},  # Reds
+    114: {"primary": "#00385D", "secondary": "#E31937"},  # Guardians
+    115: {"primary": "#33006F", "secondary": "#C4CED4"},  # Rockies
+    116: {"primary": "#0C2340", "secondary": "#FA4616"},  # Tigers
+    117: {"primary": "#002D62", "secondary": "#EB6E1F"},  # Astros
+    118: {"primary": "#004687", "secondary": "#C09A5B"},  # Royals
+    119: {"primary": "#005A9C", "secondary": "#EF3E42"},  # Dodgers
+    120: {"primary": "#AB0003", "secondary": "#14225A"},  # Nationals
+    121: {"primary": "#002D72", "secondary": "#FF5910"},  # Mets
+    133: {"primary": "#003831", "secondary": "#EFB21E"},  # Athletics
+    134: {"primary": "#27251F", "secondary": "#FDB827"},  # Pirates
+    135: {"primary": "#2F241D", "secondary": "#FFC425"},  # Padres
+    136: {"primary": "#0C2C56", "secondary": "#005C5C"},  # Mariners
+    137: {"primary": "#FD5A1E", "secondary": "#27251F"},  # Giants
+    138: {"primary": "#C41E3A", "secondary": "#0C2340"},  # Cardinals
+    139: {"primary": "#092C5C", "secondary": "#8FBCE6"},  # Rays
+    140: {"primary": "#003278", "secondary": "#C0111F"},  # Rangers
+    141: {"primary": "#134A8E", "secondary": "#1D2D5C"},  # Blue Jays
+    142: {"primary": "#002B5C", "secondary": "#D31145"},  # Twins
+    143: {"primary": "#E81828", "secondary": "#002D72"},  # Phillies
+    144: {"primary": "#CE1141", "secondary": "#13274F"},  # Braves
+    145: {"primary": "#27251F", "secondary": "#C4CED4"},  # White Sox
+    146: {"primary": "#00A3E0", "secondary": "#EF3340"},  # Marlins
+    147: {"primary": "#003087", "secondary": "#E4002C"},  # Yankees
+    158: {"primary": "#12284B", "secondary": "#FFC52F"},  # Brewers
+}
+
+ALL_MLB_TEAMS: list[tuple[int, str]] = sorted([
+    (108, "Los Angeles Angels"),
+    (109, "Arizona Diamondbacks"),
+    (110, "Baltimore Orioles"),
+    (111, "Boston Red Sox"),
+    (112, "Chicago Cubs"),
+    (113, "Cincinnati Reds"),
+    (114, "Cleveland Guardians"),
+    (115, "Colorado Rockies"),
+    (116, "Detroit Tigers"),
+    (117, "Houston Astros"),
+    (118, "Kansas City Royals"),
+    (119, "Los Angeles Dodgers"),
+    (120, "Washington Nationals"),
+    (121, "New York Mets"),
+    (133, "Oakland Athletics"),
+    (134, "Pittsburgh Pirates"),
+    (135, "San Diego Padres"),
+    (136, "Seattle Mariners"),
+    (137, "San Francisco Giants"),
+    (138, "St. Louis Cardinals"),
+    (139, "Tampa Bay Rays"),
+    (140, "Texas Rangers"),
+    (141, "Toronto Blue Jays"),
+    (142, "Minnesota Twins"),
+    (143, "Philadelphia Phillies"),
+    (144, "Atlanta Braves"),
+    (145, "Chicago White Sox"),
+    (146, "Miami Marlins"),
+    (147, "New York Yankees"),
+    (158, "Milwaukee Brewers"),
+], key=lambda x: x[1])
+
+
+def get_team_colors(team_id: int) -> dict:
+    """Return {'primary': hex, 'secondary': hex} for a team."""
+    return TEAM_COLORS.get(team_id, {"primary": "#333333", "secondary": "#666666"})
+
+
 def pitch_color(code: str) -> str:
     return PITCH_COLORS.get(code, "#aab7b8")
 
@@ -90,17 +163,23 @@ def fmt_date(date_str: str) -> str:
 # ── API calls (all cached) ────────────────────────────────────────────────────
 
 @st.cache_data(ttl=300)
-def get_cubs_games(date_str: str) -> list:
-    """Return all Cubs games on the given date string (YYYY-MM-DD)."""
+def get_team_games(team_id: int, date_str: str) -> list:
+    """Return all games for team_id on the given date string (YYYY-MM-DD)."""
     resp = requests.get(
         f"{MLB_API_BASE}/schedule",
-        params={"teamId": CUBS_TEAM_ID, "date": date_str, "sportId": 1,
+        params={"teamId": team_id, "date": date_str, "sportId": 1,
                 "hydrate": "linescore,decisions"},
         timeout=10,
     )
     resp.raise_for_status()
     dates = resp.json().get("dates", [])
     return dates[0].get("games", []) if dates else []
+
+
+@st.cache_data(ttl=300)
+def get_cubs_games(date_str: str) -> list:
+    """Return all Cubs games on the given date string (YYYY-MM-DD)."""
+    return get_team_games(CUBS_TEAM_ID, date_str)
 
 
 @st.cache_data(ttl=300)
@@ -169,11 +248,11 @@ def get_previous_game(pitcher_id: int, current_game_pk: int, season: int) -> tup
 
 
 @st.cache_data(ttl=300)
-def get_next_cubs_game(date_str: str) -> dict | None:
-    """Return info about the Cubs' game on date_str, or None if off day."""
+def get_next_team_game(team_id: int, date_str: str) -> dict | None:
+    """Return info about a team's game on date_str, or None if off day."""
     resp = requests.get(
         f"{MLB_API_BASE}/schedule",
-        params={"teamId": CUBS_TEAM_ID, "date": date_str, "sportId": 1},
+        params={"teamId": team_id, "date": date_str, "sportId": 1},
         timeout=10,
     )
     resp.raise_for_status()
@@ -185,36 +264,42 @@ def get_next_cubs_game(date_str: str) -> dict | None:
     teams = game.get("teams", {})
     home, away = teams.get("home", {}), teams.get("away", {})
     home_id = home.get("team", {}).get("id")
-    cubs_are_home = home_id == CUBS_TEAM_ID
-    opp = away if cubs_are_home else home
+    team_is_home = home_id == team_id
+    opp = away if team_is_home else home
     return {
-        "opp_name": opp.get("team", {}).get("name", "Unknown"),
-        "opp_id": opp.get("team", {}).get("id"),
-        "cubs_are_home": cubs_are_home,
+        "opp_name":      opp.get("team", {}).get("name", "Unknown"),
+        "opp_id":        opp.get("team", {}).get("id"),
+        "team_is_home":  team_is_home,
         "game_time_utc": game.get("gameDate", ""),
     }
 
 
+@st.cache_data(ttl=300)
+def get_next_cubs_game(date_str: str) -> dict | None:
+    """Return info about the Cubs' game on date_str, or None if off day."""
+    return get_next_team_game(CUBS_TEAM_ID, date_str)
+
+
 # ── Parsing ───────────────────────────────────────────────────────────────────
 
-def parse_game(game: dict) -> dict:
+def parse_game(game: dict, team_id: int = CUBS_TEAM_ID) -> dict:
     teams = game.get("teams", {})
     home, away = teams.get("home", {}), teams.get("away", {})
     home_id = home.get("team", {}).get("id")
-    cubs_are_home = home_id == CUBS_TEAM_ID
-    cubs_side = home if cubs_are_home else away
+    team_is_home = home_id == team_id
+    team_side = home if team_is_home else away
 
-    lr = cubs_side.get("leagueRecord", {})
-    cubs_record = f"{lr.get('wins','?')}-{lr.get('losses','?')}" if lr else None
+    lr = team_side.get("leagueRecord", {})
+    team_record = f"{lr.get('wins','?')}-{lr.get('losses','?')}" if lr else None
 
     home_score = home.get("score", 0)
     away_score = away.get("score", 0)
-    cubs_score = home_score if cubs_are_home else away_score
-    opp_score  = away_score if cubs_are_home else home_score
+    team_score = home_score if team_is_home else away_score
+    opp_score  = away_score if team_is_home else home_score
 
     home_name = home.get("team", {}).get("name", "Home")
     away_name = away.get("team", {}).get("name", "Away")
-    opp_name  = away_name if cubs_are_home else home_name
+    opp_name  = away_name if team_is_home else home_name
     away_id   = away.get("team", {}).get("id")
 
     decisions = game.get("decisions", {})
@@ -222,18 +307,18 @@ def parse_game(game: dict) -> dict:
         "game_pk":         game.get("gamePk"),
         "status":          game.get("status", {}).get("abstractGameState", ""),
         "detailed_status": game.get("status", {}).get("detailedState", ""),
-        "cubs_are_home":   cubs_are_home,
+        "team_is_home":    team_is_home,
         "home_name":       home_name,
         "away_name":       away_name,
         "home_id":         home_id,
         "away_id":         away_id,
         "home_score":      home_score,
         "away_score":      away_score,
-        "cubs_score":      cubs_score,
+        "team_score":      team_score,
         "opp_score":       opp_score,
         "opp_name":        opp_name,
-        "cubs_won":        cubs_score > opp_score,
-        "cubs_record":     cubs_record,
+        "team_won":        team_score > opp_score,
+        "team_record":     team_record,
         "winner":          decisions.get("winner", {}).get("fullName"),
         "loser":           decisions.get("loser",  {}).get("fullName"),
         "save":            decisions.get("save",   {}).get("fullName"),
@@ -279,7 +364,7 @@ def pitcher_summary(name: str, stats: dict, usage: dict) -> str:
     elif ip_f >= 6:
         sentence = f"{name} went {ip} innings"
     elif ip_f >= 5:
-        sentence = f"{name} gave the Cubs {ip} innings"
+        sentence = f"{name} gave the offense {ip} innings"
     else:
         sentence = f"{name} was limited to {ip} innings"
 
@@ -480,10 +565,221 @@ def build_pitch_comparison_html(now: dict, prev: dict, prev_label: str) -> str:
 </table>"""
 
 
-def render_nav() -> None:
-    """Render a horizontal top navigation bar for all pages."""
-    col1, col2, *_ = st.columns([1, 2, 3])
+# ── Rendering helpers ─────────────────────────────────────────────────────────
+
+FLY_THE_W_GIF = "https://cdn.dribbble.com/userupload/21006334/file/original-de1dba822571c54c70632d4f7d765d87.gif"
+
+
+def render_game_result(
+    info: dict,
+    game_num: int | None = None,
+    show_record: bool = False,
+    primary_color: str = "#0E3386",
+    win_gif_url: str | None = FLY_THE_W_GIF,
+) -> None:
+    """Render the game result banner, score display, linescore, and decisions."""
+    label     = f"Game {game_num} — " if game_num else ""
+    status    = info["status"]
+    team_name = info["home_name"] if info["team_is_home"] else info["away_name"]
+
+    if status == "Final":
+        if info["team_won"]:
+            bg     = f"{primary_color}20"
+            border = f"{primary_color}55"
+            gif_html = (
+                f'<img src="{win_gif_url}" style="height:60px;width:auto;border-radius:4px;" alt="Win">'
+                if win_gif_url else ""
+            )
+            st.markdown(
+                f'<div style="background-color:{bg};border:1px solid {border};border-radius:0.375rem;'
+                f'padding:1rem 1.25rem;display:flex;align-items:center;gap:1rem;">'
+                f'<span style="font-size:1.3rem;font-weight:700;color:{primary_color};">✅ {label}{team_name} win!</span>'
+                f'{gif_html}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.error(f"### ❌ {label}{team_name} lose.")
+    else:
+        st.warning(f"### ⏳ {label}{info['detailed_status']}")
+
+    away_logo = team_logo_url(info.get("away_id"))
+    home_logo = team_logo_url(info.get("home_id"))
+
+    def _score_card(name, score, logo_url):
+        logo = f'<img src="{logo_url}" style="height:52px;width:auto;margin-bottom:6px;" alt="{name}">' if logo_url else ""
+        return (
+            f'<div style="text-align:center;padding:8px 0;">'
+            f'{logo}'
+            f'<div style="font-size:0.85rem;color:#555;font-weight:600;margin-bottom:4px;">{name}</div>'
+            f'<div style="font-size:2.8rem;font-weight:800;line-height:1;">{score}</div>'
+            f'</div>'
+        )
+
+    col1, col2, col3 = st.columns([2, 1, 2])
     with col1:
-        st.page_link("pages/home.py", label="🏠 Home", use_container_width=True)
+        st.html(_score_card(info["away_name"], info["away_score"], away_logo))
     with col2:
-        st.page_link("pages/pitcher_report.py", label="⚾ Pitcher Report", use_container_width=True)
+        st.markdown(
+            "<div style='text-align:center;padding-top:2rem;font-size:1.4rem'>vs</div>",
+            unsafe_allow_html=True,
+        )
+    with col3:
+        st.html(_score_card(info["home_name"], info["home_score"], home_logo))
+
+    linescore = info.get("linescore", {})
+    if linescore.get("innings"):
+        st.markdown("**Linescore**")
+        st.html(build_linescore_html(
+            linescore, info["home_name"], info["away_name"],
+            info.get("home_id"), info.get("away_id"),
+        ))
+
+    if status == "Final":
+        d1, d2, d3 = st.columns(3)
+        if info["winner"]: d1.markdown(f"**W:** {info['winner']}")
+        if info["loser"]:  d2.markdown(f"**L:** {info['loser']}")
+        if info["save"]:   d3.markdown(f"**SV:** {info['save']}")
+
+    if show_record and info.get("team_record"):
+        st.markdown(
+            f"<div style='font-size:1.4rem;font-weight:800;color:{primary_color};margin-top:0.5rem;'>"
+            f"Season Record: {info['team_record']}</div>",
+            unsafe_allow_html=True,
+        )
+
+
+def _render_pitcher_stats(starter: dict, game_pk: int, season: int) -> None:
+    """Render detailed stats for a single starting pitcher."""
+    stats = starter["stats"]
+    ss    = starter["season_stats"]
+    pid   = starter["id"]
+    name  = starter["name"]
+
+    era  = ss.get("era", "—")
+    w    = ss.get("wins", "—")
+    l    = ss.get("losses", "—")
+    whip = ss.get("whip", "—")
+    st.markdown(f"### {name}")
+    st.caption(f"{starter['team_name']} · Season: {w}–{l}, {era} ERA, {whip} WHIP")
+
+    ip = stats.get("inningsPitched", "—")
+    k  = stats.get("strikeOuts", "—")
+    bb = stats.get("baseOnBalls", "—")
+    er = stats.get("earnedRuns", "—")
+    h  = stats.get("hits", "—")
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("IP", ip); c2.metric("K", k); c3.metric("BB", bb)
+    c4.metric("ER", er); c5.metric("H", h)
+
+    pitches = stats.get("numberOfPitches", 0)
+    strikes = stats.get("strikes", 0)
+    hr      = stats.get("homeRuns", "—")
+    bf      = stats.get("battersFaced", "—")
+    strike_pct = (
+        f"{round(int(strikes) / int(pitches) * 100)}%"
+        if pitches and strikes else "—"
+    )
+    c6, c7, c8, c9 = st.columns(4)
+    c6.metric("Pitches", pitches or "—"); c7.metric("Strike%", strike_pct)
+    c8.metric("HR", hr); c9.metric("Batters Faced", bf)
+
+    st.divider()
+
+    with st.spinner("Loading pitch data…"):
+        try:
+            usage = get_pitch_usage(game_pk, pid)
+        except Exception:
+            usage = {}
+
+    st.info(pitcher_summary(name, stats, usage))
+    st.markdown("**Pitch Usage — Last Night**")
+    st.html(build_pitch_usage_html(usage))
+
+    if usage:
+        with st.spinner("Loading previous start…"):
+            try:
+                prev_pk, prev_date, prev_opp = get_previous_game(pid, game_pk, season)
+            except Exception:
+                prev_pk = None
+
+        if prev_pk and prev_pk != game_pk:
+            with st.spinner("Loading previous pitch data…"):
+                try:
+                    prev_usage = get_pitch_usage(prev_pk, pid)
+                except Exception:
+                    prev_usage = {}
+            if prev_usage:
+                date_label = fmt_date(prev_date)
+                opp_label  = f" vs {prev_opp}" if prev_opp else ""
+                prev_label = f"{date_label}{opp_label}"
+                st.markdown(f"**Pitch Comparison — Last Night vs {prev_label}**")
+                st.html(build_pitch_comparison_html(usage, prev_usage, prev_label))
+        elif not prev_pk:
+            st.caption("*No previous start found to compare.*")
+
+
+def render_pitcher_section(
+    info: dict,
+    season: int,
+    section_header: str = "Starting Pitcher",
+    header_color: str = "#0E3386",
+) -> None:
+    """Render the starting pitcher section for the team side only."""
+    game_pk   = info["game_pk"]
+    team_side = "home" if info["team_is_home"] else "away"
+
+    st.markdown(
+        f"<h3 style='color:{header_color};margin-top:0;'>{section_header}</h3>",
+        unsafe_allow_html=True,
+    )
+
+    with st.spinner("Loading boxscore…"):
+        try:
+            boxscore = get_boxscore(game_pk)
+        except Exception as e:
+            st.error(f"Could not load boxscore: {e}")
+            return
+
+    starter = get_starter(boxscore, team_side)
+    if starter["id"]:
+        _render_pitcher_stats(starter, game_pk, season)
+    else:
+        st.info("No starting pitcher data available.")
+
+
+def render_next_game(team_id: int, team_name: str) -> None:
+    """Render the tomorrow's game section."""
+    st.markdown("#### Tomorrow")
+    tomorrow = date.today() + timedelta(days=1)
+    try:
+        next_game = get_next_team_game(team_id, tomorrow.strftime("%Y-%m-%d"))
+    except Exception:
+        next_game = None
+
+    if next_game:
+        opp_logo_url = team_logo_url(next_game["opp_id"])
+        loc_word = "vs" if next_game["team_is_home"] else "@"
+        time_display = ""
+        game_time_utc = next_game.get("game_time_utc", "")
+        if game_time_utc:
+            try:
+                gt = datetime.fromisoformat(game_time_utc.replace("Z", "+00:00"))
+                offset_hours = -5 if 3 <= gt.month <= 11 else -6
+                ct = gt + timedelta(hours=offset_hours)
+                tz_label = "CDT" if offset_hours == -5 else "CST"
+                time_display = ct.strftime("%I:%M %p").lstrip("0") + f" {tz_label}"
+            except Exception:
+                pass
+        logo_tag = (
+            f'<img src="{opp_logo_url}" style="height:36px;width:auto;vertical-align:middle;margin-right:8px;" alt="">'
+            if opp_logo_url else ""
+        )
+        time_tag = f' <span style="color:#666;font-size:0.9rem;">· {time_display}</span>' if time_display else ""
+        st.markdown(
+            f'<div style="font-size:1.1rem;font-weight:600;">'
+            f'{logo_tag}{team_name} {loc_word} {next_game["opp_name"]}{time_tag}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown("🏖️ Off Day")
