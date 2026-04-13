@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Option 2 — Front Office Analytics</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #F4F5F7; color: #1a1d2e; display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 220px;
+      background: #0E3386;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px;
+      flex-shrink: 0;
+      min-height: 100vh;
+    }
+    .sidebar-logo {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.02em;
+      margin-bottom: 32px;
+      padding: 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-bottom: 4px;
+    }
+    .nav-item.active { background: rgba(255,255,255,0.15); color: #fff; }
+    .nav-item:hover:not(.active) { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); }
+    .nav-icon { font-size: 1rem; }
+
+    /* MAIN */
+    .main { flex: 1; padding: 32px 36px; overflow-y: auto; }
+
+    /* TOP BAR */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+    .topbar h1 { font-size: 1.35rem; font-weight: 700; color: #1a1d2e; }
+    .topbar .date-chip {
+      background: #fff;
+      border: 1px solid #e2e5ed;
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.78rem;
+      color: #666;
+      font-weight: 500;
+    }
+
+    /* RESULT BANNER */
+    .result-banner {
+      background: #fff;
+      border: 1px solid #e2e5ed;
+      border-left: 4px solid #0E3386;
+      border-radius: 10px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .result-banner.loss { border-left-color: #CC3433; }
+    .result-left { display: flex; align-items: center; gap: 16px; }
+    .result-badge {
+      background: #0E3386;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 5px;
+    }
+    .result-badge.loss { background: #CC3433; }
+    .result-matchup { font-size: 1rem; font-weight: 600; color: #1a1d2e; }
+    .result-score { font-size: 2rem; font-weight: 800; color: #1a1d2e; letter-spacing: -0.02em; }
+    .result-score .dim { color: #aaa; }
+    .result-status { font-size: 0.75rem; color: #999; margin-top: 2px; text-align: right; }
+
+    /* STAT GRID */
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+    .stat-card {
+      background: #fff;
+      border: 1px solid #e2e5ed;
+      border-radius: 10px;
+      padding: 16px 18px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .stat-card .label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #999; margin-bottom: 8px; }
+    .stat-card .value { font-size: 1.6rem; font-weight: 700; color: #1a1d2e; line-height: 1; }
+    .stat-card .sub { font-size: 0.72rem; color: #aaa; margin-top: 4px; }
+    .stat-card .trend { font-size: 0.72rem; margin-top: 6px; font-weight: 600; }
+    .trend.up { color: #16a34a; }
+    .trend.down { color: #CC3433; }
+
+    /* INNING TABLE */
+    .section-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #999;
+      margin-bottom: 10px;
+      margin-top: 24px;
+    }
+    .inning-card {
+      background: #fff;
+      border: 1px solid #e2e5ed;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      margin-bottom: 24px;
+    }
+    .inning-card table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; }
+    .inning-card th { padding: 10px 14px; text-align: center; background: #F8F9FB; color: #aaa; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid #eef0f4; font-family: 'Inter', sans-serif; font-weight: 600; }
+    .inning-card td { padding: 10px 14px; text-align: center; border-bottom: 1px solid #eef0f4; color: #444; }
+    .inning-card tr:last-child td { border-bottom: none; background: #F8F9FB; font-weight: 700; color: #1a1d2e; }
+    .team-col { text-align: left !important; font-family: 'Inter', sans-serif !important; font-weight: 600 !important; color: #1a1d2e !important; font-size: 0.78rem !important; }
+
+    /* DECISIONS ROW */
+    .decisions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+    .decision-card {
+      background: #fff;
+      border: 1px solid #e2e5ed;
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .decision-pill {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 800;
+    }
+    .pill-w { background: #dbeafe; color: #0E3386; }
+    .pill-l { background: #fee2e2; color: #CC3433; }
+    .pill-s { background: #fef9c3; color: #a16207; }
+    .decision-info .d-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: #aaa; font-weight: 600; }
+    .decision-info .d-name { font-size: 0.9rem; font-weight: 700; color: #1a1d2e; margin-top: 2px; }
+    .decision-info .d-record { font-size: 0.72rem; color: #999; }
+
+    /* RECORD */
+    .record-row {
+      background: #fff;
+      border: 1px solid #e2e5ed;
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .record-item { display: flex; flex-direction: column; gap: 2px; }
+    .record-item .r-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #aaa; font-weight: 600; }
+    .record-item .r-value { font-size: 1.1rem; font-weight: 700; color: #1a1d2e; }
+    .divider { width: 1px; height: 36px; background: #e2e5ed; }
+    .win-bar-wrap { flex: 1; }
+    .win-bar-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: #aaa; font-weight: 600; margin-bottom: 6px; }
+    .win-bar-track { background: #eef0f4; border-radius: 100px; height: 6px; overflow: hidden; }
+    .win-bar-fill { background: #0E3386; height: 100%; border-radius: 100px; width: 63.2%; }
+
+    /* META */
+    .wireframe-label {
+      position: fixed; top: 12px; right: 16px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.7rem;
+      color: #999;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .back-link {
+      display: inline-block; margin-bottom: 20px;
+      font-size: 0.75rem; color: #aaa; text-decoration: none;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .back-link:hover { color: #0E3386; }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">⚾ Cubs Win Checker</div>
+  <div class="nav-item active"><span class="nav-icon">🏠</span> Home</div>
+  <div class="nav-item"><span class="nav-icon">📊</span> Pitcher Report</div>
+</div>
+
+<div class="main">
+  <a href="index.html" class="back-link">← All Options</a>
+  <div class="wireframe-label">Option 2 — Front Office Analytics</div>
+
+  <div class="topbar">
+    <h1>Yesterday's Game</h1>
+    <div class="date-chip">Saturday, April 12, 2026</div>
+  </div>
+
+  <!-- RESULT BANNER -->
+  <div class="result-banner">
+    <div class="result-left">
+      <div class="result-badge">W</div>
+      <div>
+        <div class="result-matchup">Cubs vs. Brewers · Wrigley Field</div>
+        <div style="font-size:0.75rem;color:#999;margin-top:2px;">Final · 9 innings</div>
+      </div>
+    </div>
+    <div>
+      <div class="result-score"><span>5</span> <span class="dim">–</span> <span class="dim">2</span></div>
+      <div class="result-status">CHC · MIL</div>
+    </div>
+  </div>
+
+  <!-- STAT GRID -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="label">Cubs Runs</div>
+      <div class="value">5</div>
+      <div class="sub">10 hits · 0 errors</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Opp. Runs</div>
+      <div class="value">2</div>
+      <div class="sub">7 hits · 1 error</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Season W–L</div>
+      <div class="value">12–7</div>
+      <div class="trend up">↑ 2nd in NL Central</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Win Streak</div>
+      <div class="value">W3</div>
+      <div class="sub">3-game win streak</div>
+    </div>
+  </div>
+
+  <!-- LINESCORE -->
+  <div class="section-header">Linescore</div>
+  <div class="inning-card">
+    <table>
+      <thead>
+        <tr>
+          <th class="team-col">Team</th>
+          <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+          <th>6</th><th>7</th><th>8</th><th>9</th>
+          <th>R</th><th>H</th><th>E</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="team-col">MIL</td>
+          <td>0</td><td>0</td><td>1</td><td>0</td><td>0</td>
+          <td>1</td><td>0</td><td>0</td><td>0</td>
+          <td>2</td><td>7</td><td>1</td>
+        </tr>
+        <tr>
+          <td class="team-col">CHC</td>
+          <td>2</td><td>0</td><td>0</td><td>1</td><td>0</td>
+          <td>0</td><td>2</td><td>0</td><td>X</td>
+          <td>5</td><td>10</td><td>0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- DECISIONS -->
+  <div class="section-header">Pitcher Decisions</div>
+  <div class="decisions-grid">
+    <div class="decision-card">
+      <div class="decision-pill pill-w">W</div>
+      <div class="decision-info">
+        <div class="d-label">Win</div>
+        <div class="d-name">Justin Steele</div>
+        <div class="d-record">3–1 · 2.85 ERA</div>
+      </div>
+    </div>
+    <div class="decision-card">
+      <div class="decision-pill pill-l">L</div>
+      <div class="decision-info">
+        <div class="d-label">Loss</div>
+        <div class="d-name">Freddy Peralta</div>
+        <div class="d-record">2–2 · 3.60 ERA</div>
+      </div>
+    </div>
+    <div class="decision-card">
+      <div class="decision-pill pill-s">SV</div>
+      <div class="decision-info">
+        <div class="d-label">Save</div>
+        <div class="d-name">Hector Neris</div>
+        <div class="d-record">SV 4</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECORD BAR -->
+  <div class="section-header">Season Record</div>
+  <div class="record-row">
+    <div class="record-item">
+      <div class="r-label">Record</div>
+      <div class="r-value">12 – 7</div>
+    </div>
+    <div class="divider"></div>
+    <div class="record-item">
+      <div class="r-label">Win %</div>
+      <div class="r-value">.632</div>
+    </div>
+    <div class="divider"></div>
+    <div class="win-bar-wrap">
+      <div class="win-bar-label">Win percentage</div>
+      <div class="win-bar-track"><div class="win-bar-fill"></div></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

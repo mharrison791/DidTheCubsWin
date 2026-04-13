@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Option 1 — Stadium Scoreboard</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Barlow Condensed', sans-serif; background: #0A0A0F; color: #e8e8f0; display: flex; min-height: 100vh; }
+
+    /* SIDEBAR RAIL */
+    .sidebar {
+      width: 64px;
+      background: #0D0D1A;
+      border-right: 1px solid #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 0;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .sidebar .logo {
+      font-size: 1.4rem;
+      margin-bottom: 24px;
+    }
+    .nav-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #555;
+    }
+    .nav-icon.active { background: #0E3386; color: #fff; }
+    .nav-icon:hover:not(.active) { background: #1a1a2e; color: #aaa; }
+
+    /* MAIN */
+    .main { flex: 1; padding: 32px 40px; overflow-y: auto; }
+
+    /* DATE LABEL */
+    .date-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #555;
+      margin-bottom: 24px;
+    }
+
+    /* HERO SCORE CARD */
+    .hero-card {
+      background: linear-gradient(135deg, #0E1A3A 0%, #0A0A1F 100%);
+      border: 1px solid #1e2d5a;
+      border-radius: 16px;
+      padding: 32px 40px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #0E3386, #CC3433);
+    }
+    .win-banner {
+      display: inline-block;
+      background: #0E3386;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .win-banner.loss { background: #CC3433; }
+    .teams-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 16px;
+    }
+    .team-block {
+      flex: 1;
+    }
+    .team-block.away { text-align: right; }
+    .team-name {
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    .team-score {
+      font-size: 5rem;
+      font-weight: 900;
+      line-height: 1;
+      color: #e8e8f0;
+    }
+    .team-score.dim { color: #3a3a5a; }
+    .vs-block {
+      width: 80px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #444;
+      letter-spacing: 0.1em;
+      padding-bottom: 8px;
+    }
+    .status-final {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #555;
+      margin-top: 4px;
+    }
+
+    /* INNING STRIP */
+    .inning-strip {
+      background: #0D0D1A;
+      border: 1px solid #1a1a2e;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .inning-strip table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+    }
+    .inning-strip th, .inning-strip td {
+      padding: 10px 14px;
+      text-align: center;
+      border-right: 1px solid #1a1a2e;
+    }
+    .inning-strip th { background: #111127; color: #555; letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.65rem; }
+    .inning-strip td { color: #bbb; }
+    .inning-strip tr:last-child td { border-top: 1px solid #1a1a2e; color: #e8e8f0; font-weight: 600; }
+    .inning-strip .team-col { text-align: left; color: #777; }
+    .inning-strip .total-col { background: #111127; color: #fff; font-weight: 700; }
+
+    /* PITCHER DECISIONS */
+    .decisions-row { display: flex; gap: 16px; margin-bottom: 24px; }
+    .decision-card {
+      flex: 1;
+      background: #0D0D1A;
+      border: 1px solid #1a1a2e;
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .decision-badge {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 800;
+      letter-spacing: 0.05em;
+    }
+    .badge-w { background: rgba(14,51,134,0.3); color: #6688ff; border: 1px solid #0E3386; }
+    .badge-l { background: rgba(204,52,51,0.2); color: #ff6b6b; border: 1px solid #CC3433; }
+    .badge-s { background: rgba(255,193,7,0.15); color: #ffc107; border: 1px solid #c79a00; }
+    .decision-info .label { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: #555; }
+    .decision-info .name { font-size: 0.9rem; font-weight: 700; color: #ccc; margin-top: 2px; }
+    .decision-info .record { font-size: 0.75rem; color: #555; }
+
+    /* RECORD BAR */
+    .record-bar {
+      background: #0D0D1A;
+      border: 1px solid #1a1a2e;
+      border-radius: 10px;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .record-label { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: #555; }
+    .record-value { font-size: 1.1rem; font-weight: 700; color: #e8e8f0; }
+    .record-win-pct { font-size: 0.85rem; color: #6688ff; }
+
+    /* BALLOONS */
+    .balloon-bar {
+      background: linear-gradient(135deg, rgba(14,51,134,0.2), rgba(204,52,51,0.15));
+      border: 1px dashed #1e2d5a;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 0.8rem;
+      color: #444;
+      text-align: center;
+      letter-spacing: 0.08em;
+      margin-top: 16px;
+    }
+
+    /* LABEL */
+    .wireframe-label {
+      position: fixed;
+      top: 12px; right: 16px;
+      background: rgba(0,0,0,0.7);
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.7rem;
+      color: #666;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-family: sans-serif;
+    }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      font-size: 0.75rem;
+      color: #444;
+      text-decoration: none;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .back-link:hover { color: #6688ff; }
+
+    .section-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #444;
+      margin-bottom: 12px;
+      margin-top: 28px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo">⚾</div>
+  <div class="nav-icon active" title="Home">🏠</div>
+  <div class="nav-icon" title="Pitcher Report">📊</div>
+</div>
+
+<div class="main">
+  <a href="index.html" class="back-link">← All Options</a>
+  <div class="wireframe-label">Option 1 — Stadium Scoreboard</div>
+
+  <div class="date-label">Sunday, April 13, 2026 · Yesterday's Result</div>
+
+  <!-- HERO SCORE -->
+  <div class="hero-card">
+    <div class="win-banner">✓ Cubs Win</div>
+    <div class="teams-row">
+      <div class="team-block away">
+        <div class="team-name">Milwaukee Brewers</div>
+        <div class="team-score dim">2</div>
+      </div>
+      <div class="vs-block">@<br><span class="status-final">Final</span></div>
+      <div class="team-block">
+        <div class="team-name">Chicago Cubs</div>
+        <div class="team-score">5</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INNING TABLE -->
+  <div class="section-title">Linescore</div>
+  <div class="inning-strip">
+    <table>
+      <thead>
+        <tr>
+          <th class="team-col">Team</th>
+          <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+          <th>6</th><th>7</th><th>8</th><th>9</th>
+          <th class="total-col">R</th><th class="total-col">H</th><th class="total-col">E</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="team-col">MIL</td>
+          <td>0</td><td>0</td><td>1</td><td>0</td><td>0</td>
+          <td>1</td><td>0</td><td>0</td><td>0</td>
+          <td class="total-col">2</td><td class="total-col">7</td><td class="total-col">1</td>
+        </tr>
+        <tr>
+          <td class="team-col">CHC</td>
+          <td>2</td><td>0</td><td>0</td><td>1</td><td>0</td>
+          <td>0</td><td>2</td><td>0</td><td>X</td>
+          <td class="total-col">5</td><td class="total-col">10</td><td class="total-col">0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- DECISIONS -->
+  <div class="section-title">Pitcher Decisions</div>
+  <div class="decisions-row">
+    <div class="decision-card">
+      <div class="decision-badge badge-w">W</div>
+      <div class="decision-info">
+        <div class="label">Win</div>
+        <div class="name">Justin Steele</div>
+        <div class="record">3–1, 2.85 ERA</div>
+      </div>
+    </div>
+    <div class="decision-card">
+      <div class="decision-badge badge-l">L</div>
+      <div class="decision-info">
+        <div class="label">Loss</div>
+        <div class="name">Freddy Peralta</div>
+        <div class="record">2–2, 3.60 ERA</div>
+      </div>
+    </div>
+    <div class="decision-card">
+      <div class="decision-badge badge-s">SV</div>
+      <div class="decision-info">
+        <div class="label">Save</div>
+        <div class="name">Hector Neris</div>
+        <div class="record">SV 4</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECORD -->
+  <div class="record-bar">
+    <div>
+      <div class="record-label">Season Record</div>
+      <div class="record-value">12–7</div>
+    </div>
+    <div class="record-win-pct">.632 win%</div>
+  </div>
+
+  <div class="balloon-bar">🎈 Confetti + balloon animation on Cubs win</div>
+</div>
+
+</body>
+</html>

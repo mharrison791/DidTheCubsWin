@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Option 3 — Cubs Beat Reporter</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:wght@400;600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Source Serif 4', Georgia, serif; background: #F9F6F1; color: #1a1208; display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* RESULT RIBBON */
+    .result-ribbon {
+      background: #0E3386;
+      color: #fff;
+      text-align: center;
+      padding: 8px 20px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .result-ribbon.loss { background: #CC3433; }
+
+    /* MASTHEAD */
+    .masthead {
+      border-bottom: 3px double #1a1208;
+      padding: 16px 48px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .masthead-left {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      color: #888;
+      letter-spacing: 0.05em;
+    }
+    .masthead-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.6rem;
+      font-weight: 900;
+      letter-spacing: -0.01em;
+      text-align: center;
+    }
+    .masthead-title span { color: #0E3386; }
+    .masthead-right {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      color: #888;
+      letter-spacing: 0.05em;
+      text-align: right;
+    }
+
+    /* NAV BAR */
+    .nav-bar {
+      border-bottom: 1px solid #1a1208;
+      padding: 0 48px;
+      display: flex;
+      gap: 0;
+      font-family: 'Inter', sans-serif;
+    }
+    .nav-tab {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 10px 18px;
+      cursor: pointer;
+      color: #888;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.15s;
+    }
+    .nav-tab.active { color: #1a1208; border-bottom-color: #1a1208; }
+    .nav-tab:hover:not(.active) { color: #444; }
+
+    /* MAIN */
+    .main { max-width: 820px; margin: 0 auto; padding: 44px 24px; width: 100%; }
+
+    /* HEADLINE */
+    .game-date {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #CC3433;
+      margin-bottom: 10px;
+    }
+    .game-headline {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 2.4rem;
+      font-weight: 900;
+      line-height: 1.15;
+      color: #1a1208;
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+    }
+    .game-subhead {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 28px;
+    }
+
+    /* SCORE BLOCK */
+    .score-block {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      border: 1px solid #d4cbbf;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+    .score-team {
+      flex: 1;
+      padding: 18px 24px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .score-team.winner { background: #f0f4ff; }
+    .score-team-name {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #666;
+    }
+    .score-team-name .full { display: block; font-size: 0.95rem; color: #1a1208; letter-spacing: 0; text-transform: none; margin-top: 2px; }
+    .score-num {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 3rem;
+      font-weight: 900;
+      color: #1a1208;
+      line-height: 1;
+    }
+    .score-num.dim { color: #ccc; }
+    .score-divider {
+      width: 48px;
+      background: #F9F6F1;
+      border-left: 1px solid #d4cbbf;
+      border-right: 1px solid #d4cbbf;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #aaa;
+      letter-spacing: 0.05em;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    /* RULE */
+    .ornamental-rule {
+      text-align: center;
+      color: #ccc;
+      font-size: 1rem;
+      letter-spacing: 0.3em;
+      margin: 28px 0;
+    }
+
+    /* STAT BOXES */
+    .stat-boxes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: #d4cbbf; border: 1px solid #d4cbbf; border-radius: 4px; overflow: hidden; margin-bottom: 32px; }
+    .stat-box {
+      background: #fff;
+      padding: 16px 18px;
+      text-align: center;
+    }
+    .stat-box .sb-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 6px;
+    }
+    .stat-box .sb-value {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #1a1208;
+      line-height: 1;
+    }
+    .stat-box .sb-sub {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.68rem;
+      color: #bbb;
+      margin-top: 4px;
+    }
+
+    /* LINESCORE */
+    .section-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #aaa;
+      border-top: 2px solid #1a1208;
+      padding-top: 10px;
+      margin-bottom: 12px;
+    }
+    .linescore-wrap { overflow-x: auto; margin-bottom: 32px; }
+    .linescore-wrap table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+    }
+    .linescore-wrap th {
+      padding: 8px 12px;
+      text-align: center;
+      background: #1a1208;
+      color: rgba(255,255,255,0.6);
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+    }
+    .linescore-wrap td { padding: 9px 12px; text-align: center; border-bottom: 1px solid #e8e2d8; color: #444; }
+    .linescore-wrap tr:last-child td { font-weight: 700; color: #1a1208; background: #f4f0e8; }
+    .linescore-wrap .tname { text-align: left !important; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.78rem; color: #1a1208; }
+
+    /* PULL QUOTE / AI SUMMARY */
+    .pull-quote {
+      border-left: 4px solid #0E3386;
+      padding: 20px 28px;
+      margin: 32px 0;
+      background: #fff;
+      border-radius: 0 4px 4px 0;
+    }
+    .pull-quote .pq-mark {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 3rem;
+      color: #d4cbbf;
+      line-height: 0.5;
+      margin-bottom: 10px;
+    }
+    .pull-quote .pq-text {
+      font-size: 1rem;
+      line-height: 1.65;
+      color: #333;
+      font-style: italic;
+    }
+    .pull-quote .pq-source {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      color: #aaa;
+      margin-top: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* DECISIONS */
+    .decisions-row { display: flex; gap: 16px; margin-bottom: 32px; }
+    .decision-box {
+      flex: 1;
+      border: 1px solid #d4cbbf;
+      background: #fff;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .decision-box-header {
+      background: #1a1208;
+      color: rgba(255,255,255,0.7);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+    }
+    .decision-box-body { padding: 12px 14px; }
+    .decision-box-body .d-name { font-family: 'Playfair Display', Georgia, serif; font-size: 1.05rem; font-weight: 700; color: #1a1208; }
+    .decision-box-body .d-record { font-family: 'Inter', sans-serif; font-size: 0.72rem; color: #888; margin-top: 3px; }
+
+    /* RECORD */
+    .record-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      border: 1px solid #d4cbbf;
+      background: #fff;
+      border-radius: 4px;
+      padding: 20px 24px;
+      text-align: center;
+    }
+    .record-box .r-item { display: flex; flex-direction: column; gap: 4px; }
+    .record-box .r-label { font-family: 'Inter', sans-serif; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #aaa; }
+    .record-box .r-val { font-family: 'Playfair Display', Georgia, serif; font-size: 2rem; font-weight: 700; color: #1a1208; }
+    .record-sep { font-family: serif; font-size: 1.5rem; color: #d4cbbf; }
+
+    /* META */
+    .wireframe-label {
+      position: fixed; top: 12px; right: 16px;
+      background: rgba(249,246,241,0.95);
+      border: 1px solid #d4cbbf;
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      color: #aaa;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .back-link {
+      display: inline-block; margin-bottom: 24px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem; color: #aaa; text-decoration: none;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .back-link:hover { color: #0E3386; }
+  </style>
+</head>
+<body>
+
+<div class="wireframe-label">Option 3 — Beat Reporter</div>
+
+<!-- RESULT RIBBON -->
+<div class="result-ribbon">⚾ Cubs Win — Saturday, April 12, 2026</div>
+
+<!-- MASTHEAD -->
+<div class="masthead">
+  <div class="masthead-left">Est. 1876<br>Chicago, IL</div>
+  <div class="masthead-title">⚾ <span>Cubs</span> Win Checker</div>
+  <div class="masthead-right">Vol. 2026 · No. 33<br>Free Daily</div>
+</div>
+
+<!-- NAV -->
+<div class="nav-bar">
+  <div class="nav-tab active">Home</div>
+  <div class="nav-tab">Pitcher Report</div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+  <a href="index.html" class="back-link">← All Options</a>
+
+  <div class="game-date">Saturday, April 12, 2026 · Wrigley Field</div>
+  <h1 class="game-headline">Cubs Rout Brewers 5–2,<br>Steele Dominant Through Six</h1>
+  <div class="game-subhead">Chicago takes series opener behind strong outing from lefty; Neris closes it out</div>
+
+  <!-- SCORE BLOCK -->
+  <div class="score-block">
+    <div class="score-team">
+      <div class="score-team-name">MIL<span class="full">Milwaukee Brewers</span></div>
+      <div class="score-num dim">2</div>
+    </div>
+    <div class="score-divider">@<br><span style="font-size:0.6rem;color:#bbb;">Final</span></div>
+    <div class="score-team winner">
+      <div class="score-team-name">CHC<span class="full">Chicago Cubs</span></div>
+      <div class="score-num">5</div>
+    </div>
+  </div>
+
+  <!-- STAT BOXES -->
+  <div class="stat-boxes">
+    <div class="stat-box">
+      <div class="sb-label">Cubs Hits</div>
+      <div class="sb-value">10</div>
+      <div class="sb-sub">0 errors</div>
+    </div>
+    <div class="stat-box">
+      <div class="sb-label">Opp. Hits</div>
+      <div class="sb-value">7</div>
+      <div class="sb-sub">1 error</div>
+    </div>
+    <div class="stat-box">
+      <div class="sb-label">Season</div>
+      <div class="sb-value">12–7</div>
+      <div class="sb-sub">2nd NL Central</div>
+    </div>
+    <div class="stat-box">
+      <div class="sb-label">Streak</div>
+      <div class="sb-value">W3</div>
+      <div class="sb-sub">3-game run</div>
+    </div>
+  </div>
+
+  <!-- LINESCORE -->
+  <div class="section-label">Linescore</div>
+  <div class="linescore-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="tname">Team</th>
+          <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+          <th>6</th><th>7</th><th>8</th><th>9</th>
+          <th>R</th><th>H</th><th>E</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="tname">Milwaukee</td>
+          <td>0</td><td>0</td><td>1</td><td>0</td><td>0</td>
+          <td>1</td><td>0</td><td>0</td><td>0</td>
+          <td>2</td><td>7</td><td>1</td>
+        </tr>
+        <tr>
+          <td class="tname">Chicago</td>
+          <td>2</td><td>0</td><td>0</td><td>1</td><td>0</td>
+          <td>0</td><td>2</td><td>0</td><td>X</td>
+          <td>5</td><td>10</td><td>0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- PULL QUOTE -->
+  <div class="pull-quote">
+    <div class="pq-mark">"</div>
+    <div class="pq-text">Steele was exceptional tonight — six innings, two runs, eight strikeouts and a fastball that touched 94 mph in the sixth. The Cubs' offense woke up early with a two-run first and never looked back, handing Milwaukee their third straight loss.</div>
+    <div class="pq-source">AI Game Summary · Cubs Win Checker</div>
+  </div>
+
+  <!-- DECISIONS -->
+  <div class="section-label">Pitcher Decisions</div>
+  <div class="decisions-row">
+    <div class="decision-box">
+      <div class="decision-box-header">Win</div>
+      <div class="decision-box-body">
+        <div class="d-name">Justin Steele</div>
+        <div class="d-record">3–1 · 2.85 ERA · 6 IP, 2 ER, 8 K</div>
+      </div>
+    </div>
+    <div class="decision-box">
+      <div class="decision-box-header">Loss</div>
+      <div class="decision-box-body">
+        <div class="d-name">Freddy Peralta</div>
+        <div class="d-record">2–2 · 3.60 ERA · 5 IP, 4 ER, 6 K</div>
+      </div>
+    </div>
+    <div class="decision-box">
+      <div class="decision-box-header">Save</div>
+      <div class="decision-box-body">
+        <div class="d-name">Hector Neris</div>
+        <div class="d-record">SV 4 · 1 IP, 0 ER</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECORD -->
+  <div class="section-label">Season Record</div>
+  <div class="record-box">
+    <div class="r-item">
+      <div class="r-label">Wins</div>
+      <div class="r-val" style="color:#0E3386;">12</div>
+    </div>
+    <div class="record-sep">–</div>
+    <div class="r-item">
+      <div class="r-label">Losses</div>
+      <div class="r-val" style="color:#CC3433;">7</div>
+    </div>
+    <div class="record-sep">·</div>
+    <div class="r-item">
+      <div class="r-label">Win %</div>
+      <div class="r-val">.632</div>
+    </div>
+  </div>
+
+  <div class="ornamental-rule">— ⚾ —</div>
+
+</div>
+
+</body>
+</html>
