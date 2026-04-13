@@ -294,11 +294,13 @@ def build_linescore_html(linescore: dict, home_name: str, away_name: str) -> str
     return f"""
 <style>
   .ls{{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.83rem;font-family:monospace}}
-  .ls th,.ls td{{text-align:center;padding:5px 3px;border:1px solid #e0e0e0;white-space:nowrap;overflow:hidden}}
-  .ls .team{{text-align:left;font-weight:600;padding-left:8px;width:22%;text-overflow:ellipsis}}
-  .ls th{{background:#f0f0f0;font-weight:600}}
-  .ls .rhe-h{{background:#c8c8c8;font-weight:700}}
-  .ls .rhe{{background:#e0e0e0;font-weight:700}}
+  .ls th,.ls td{{text-align:center;padding:8px 4px;border:1px solid #1a1a2e;white-space:nowrap;overflow:hidden}}
+  .ls .team{{text-align:left;font-weight:600;padding-left:10px;width:22%;text-overflow:ellipsis;color:#bbb}}
+  .ls th{{background:#111127;font-weight:700;color:#444;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}}
+  .ls td{{color:#bbb;background:#0D0D1A}}
+  .ls .rhe-h{{background:#0A0A1F;font-weight:700;color:#444}}
+  .ls .rhe{{background:#111127;font-weight:700;color:#e8e8f0}}
+  .ls tr:last-child td{{border-top:1px solid #1e2d5a}}
 </style>
 <table class="ls">
   <thead>{hrow}</thead>
@@ -327,16 +329,17 @@ def build_pitch_usage_html(usage: dict) -> str:
     return f"""
 <style>
   .pu{{width:100%;border-collapse:collapse;font-size:.85rem}}
-  .pu th{{text-align:left;padding:5px 8px;background:#f5f5f5;font-weight:600;border-bottom:2px solid #ddd}}
-  .pu td{{padding:5px 8px;border-bottom:1px solid #eee;vertical-align:middle}}
+  .pu th{{text-align:left;padding:8px 10px;background:#111127;font-weight:700;
+          border-bottom:1px solid #1a1a2e;color:#444;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}}
+  .pu td{{padding:8px 10px;border-bottom:1px solid #1a1a2e;vertical-align:middle;background:#0D0D1A;color:#bbb}}
   .pd{{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}}
-  .pc{{color:#999;font-size:.75rem}}
-  .pv{{text-align:right;width:50px;font-variant-numeric:tabular-nums}}
+  .pc{{color:#333;font-size:.75rem}}
+  .pv{{text-align:right;width:50px;font-variant-numeric:tabular-nums;color:#e8e8f0}}
   .pb{{width:140px}}
-  .bw{{position:relative;background:#eee;border-radius:3px;height:18px}}
-  .bf{{height:100%;border-radius:3px;opacity:.8}}
-  .bl{{position:absolute;right:4px;top:1px;font-size:.75rem;font-weight:600;color:#333}}
-  .pvl{{text-align:right;color:#666;font-size:.8rem;width:75px}}
+  .bw{{position:relative;background:#1a1a2e;border-radius:3px;height:18px}}
+  .bf{{height:100%;border-radius:3px;opacity:.85}}
+  .bl{{position:absolute;right:4px;top:1px;font-size:.75rem;font-weight:600;color:#e8e8f0}}
+  .pvl{{text-align:right;color:#444;font-size:.8rem;width:80px}}
 </style>
 <table class="pu">
   <thead><tr><th>Pitch</th><th style="text-align:right">Count</th><th>Usage</th><th style="text-align:right">Avg Velo</th></tr></thead>
@@ -383,10 +386,12 @@ def build_pitch_comparison_html(now: dict, prev: dict, prev_label: str) -> str:
     return f"""
 <style>
   .cp{{width:100%;border-collapse:collapse;font-size:.85rem}}
-  .cp th{{padding:5px 8px;background:#f5f5f5;border-bottom:2px solid #ddd;font-weight:600;font-size:.8rem}}
-  .cp td{{padding:5px 8px;border-bottom:1px solid #eee;vertical-align:middle}}
+  .cp th{{padding:8px 10px;background:#111127;border-bottom:1px solid #1a1a2e;font-weight:700;
+          font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#444}}
+  .cp td{{padding:8px 10px;border-bottom:1px solid #1a1a2e;vertical-align:middle;
+          background:#0D0D1A;color:#bbb}}
   .cpd{{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}}
-  .cpv{{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}}
+  .cpv{{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;color:#e8e8f0}}
 </style>
 <table class="cp">
   <thead><tr>

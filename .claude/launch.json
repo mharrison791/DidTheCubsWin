@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Streamlit App",
+      "runtimeExecutable": "streamlit",
+      "runtimeArgs": ["run", "app.py", "--server.port=8501", "--server.headless=true"],
+      "port": 8501
+    },
+    {
+      "name": "Wireframes",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "58700", "--directory", "wireframes"],
+      "port": 58700,
+      "autoPort": false
+    }
+  ]
+}
