@@ -11,7 +11,11 @@ from utils import (
     render_next_game,
 )
 
-st.title("⚾ Did My Team Win Last Night?")
+st.markdown(
+    '<div style="font-family:system-ui,sans-serif;font-size:2rem;font-weight:800;'
+    'color:#e8e8f0;letter-spacing:0.01em;margin-bottom:20px;">⚾ Did My Team Win?</div>',
+    unsafe_allow_html=True,
+)
 
 # ── Team selector ──────────────────────────────────────────────────────────────
 selected = st.selectbox(
@@ -33,8 +37,12 @@ primary = colors["primary"]
 
 yesterday = date.today() - timedelta(days=1)
 season    = yesterday.year
-st.caption(f"Checking results for **{yesterday.strftime('%A, %B %d, %Y')}**")
-st.divider()
+st.markdown(
+    f'<div style="font-family:system-ui,sans-serif;font-size:0.68rem;color:#888;'
+    f'letter-spacing:0.1em;margin-bottom:12px;">{yesterday.strftime("%A, %B %d, %Y")}</div>',
+    unsafe_allow_html=True,
+)
+st.markdown('<div style="border-top:1px solid #1a1a2e;margin-bottom:24px;"></div>', unsafe_allow_html=True)
 
 with st.spinner("Fetching game data..."):
     try:
@@ -54,8 +62,11 @@ final_parsed = [g for g in parsed if g["status"] == "Final"]
 if is_dh:
     wins   = sum(1 for g in final_parsed if g["team_won"])
     losses = sum(1 for g in final_parsed if not g["team_won"])
-    st.subheader(f"🎽 Doubleheader Day! — {team_name} went {wins}–{losses}")
-    st.divider()
+    st.markdown(
+        f'<div style="font-family:system-ui,sans-serif;font-size:1.1rem;font-weight:700;'
+        f'color:#e8e8f0;margin-bottom:16px;">🎽 Doubleheader — {team_name} went {wins}–{losses}</div>',
+        unsafe_allow_html=True,
+    )
 
 last_final_idx = max(
     (i for i, g in enumerate(parsed) if g["status"] == "Final"), default=None
@@ -70,11 +81,11 @@ for i, info in enumerate(parsed):
         win_gif_url=None,
     )
     if is_dh and i < len(parsed) - 1:
-        st.divider()
+        st.markdown('<div style="border-top:1px solid #1a1a2e;margin:24px 0;"></div>', unsafe_allow_html=True)
 
 # ── Hitters & Pitcher Report ───────────────────────────────────────────────────
 if final_parsed:
-    st.divider()
+    st.markdown('<div style="border-top:1px solid #1a1a2e;margin:24px 0;"></div>', unsafe_allow_html=True)
     if is_dh:
         tabs = st.tabs([f"Game {i+1}" for i in range(len(final_parsed))])
         for tab, info in zip(tabs, final_parsed):
@@ -104,5 +115,5 @@ if final_parsed:
         )
 
 # ── Tomorrow ───────────────────────────────────────────────────────────────────
-st.divider()
+st.markdown('<div style="border-top:1px solid #1a1a2e;margin:24px 0;"></div>', unsafe_allow_html=True)
 render_next_game(team_id, team_name)

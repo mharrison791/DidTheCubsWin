@@ -6,6 +6,22 @@ from zoneinfo import ZoneInfo
 CUBS_TEAM_ID = 112
 MLB_API_BASE = "https://statsapi.mlb.com/api/v1"
 
+# ESPN team logo CDN — maps MLB team ID → ESPN abbreviation
+_ESPN_ABBREV = {
+    108: "laa", 109: "ari", 110: "bal", 111: "bos", 112: "chc",
+    113: "cin", 114: "cle", 115: "col", 116: "det", 117: "hou",
+    118: "kc",  119: "lad", 120: "wsh", 121: "nym", 133: "oak",
+    134: "pit", 135: "sd",  136: "sea", 137: "sf",  138: "stl",
+    139: "tb",  140: "tex", 141: "tor", 142: "min", 143: "phi",
+    144: "atl", 145: "chw", 146: "mia", 147: "nyy", 158: "mil",
+}
+
+def team_logo_url(team_id: int) -> str:
+    abbrev = _ESPN_ABBREV.get(team_id, "")
+    if not abbrev:
+        return ""
+    return f"https://a.espncdn.com/combiner/i?img=/i/teamlogos/mlb/500/{abbrev}.png&w=120&h=120&transparent=true"
+
 # ── Pitch type colours ────────────────────────────────────────────────────────
 PITCH_COLORS = {
     "FF": "#e74c3c",  # Four-Seam Fastball
@@ -279,6 +295,7 @@ def parse_game(game: dict, team_id: int = CUBS_TEAM_ID) -> dict:
     teams = game.get("teams", {})
     home, away = teams.get("home", {}), teams.get("away", {})
     home_id = home.get("team", {}).get("id")
+    away_id = away.get("team", {}).get("id")
     team_is_home = home_id == team_id
     team_side = home if team_is_home else away
 
@@ -293,7 +310,6 @@ def parse_game(game: dict, team_id: int = CUBS_TEAM_ID) -> dict:
     home_name = home.get("team", {}).get("name", "Home")
     away_name = away.get("team", {}).get("name", "Away")
     opp_name  = away_name if team_is_home else home_name
-    away_id   = away.get("team", {}).get("id")
 
     decisions = game.get("decisions", {})
     return {
@@ -413,28 +429,28 @@ TABLE_CSS = """
   .ls{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.83rem;font-family:monospace}
   .ls th,.ls td{text-align:center;padding:8px 4px;border:1px solid #1a1a2e;white-space:nowrap;overflow:hidden}
   .ls .team{text-align:left;font-weight:600;padding-left:10px;width:22%;text-overflow:ellipsis;color:#bbb}
-  .ls th{background:#111127;font-weight:700;color:#444;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}
+  .ls th{background:#111127;font-weight:700;color:#999;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}
   .ls td{color:#bbb;background:#0D0D1A}
-  .ls .rhe-h{background:#0A0A1F;font-weight:700;color:#444}
+  .ls .rhe-h{background:#0A0A1F;font-weight:700;color:#999}
   .ls .rhe{background:#111127;font-weight:700;color:#e8e8f0}
   .ls tr:last-child td{border-top:1px solid #1e2d5a}
 
   .pu{width:100%;border-collapse:collapse;font-size:.85rem}
   .pu th{text-align:left;padding:8px 10px;background:#111127;font-weight:700;
-          border-bottom:1px solid #1a1a2e;color:#444;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}
+          border-bottom:1px solid #1a1a2e;color:#999;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}
   .pu td{padding:8px 10px;border-bottom:1px solid #1a1a2e;vertical-align:middle;background:#0D0D1A;color:#bbb}
   .pd{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
-  .pc{color:#333;font-size:.75rem}
+  .pc{color:#999;font-size:.75rem}
   .pv{text-align:right;width:50px;font-variant-numeric:tabular-nums;color:#e8e8f0}
   .pb{width:140px}
   .bw{position:relative;background:#1a1a2e;border-radius:3px;height:18px}
   .bf{height:100%;border-radius:3px;opacity:.85}
   .bl{position:absolute;right:4px;top:1px;font-size:.75rem;font-weight:600;color:#e8e8f0}
-  .pvl{text-align:right;color:#444;font-size:.8rem;width:80px}
+  .pvl{text-align:right;color:#999;font-size:.8rem;width:80px}
 
   .cp{width:100%;border-collapse:collapse;font-size:.85rem}
   .cp th{padding:8px 10px;background:#111127;border-bottom:1px solid #1a1a2e;font-weight:700;
-          font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#444}
+          font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#999}
   .cp td{padding:8px 10px;border-bottom:1px solid #1a1a2e;vertical-align:middle;
           background:#0D0D1A;color:#bbb}
   .cpd{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
@@ -685,7 +701,9 @@ def render_hitter_section(
     team_side = "home" if info["team_is_home"] else "away"
 
     st.markdown(
-        f"<h3 style='color:{header_color};margin-top:0;'>{section_header}</h3>",
+        f'<div style="font-family:system-ui,sans-serif;font-size:0.62rem;font-weight:700;'
+        f'letter-spacing:0.16em;text-transform:uppercase;color:{header_color};margin:20px 0 12px 0;">'
+        f'{section_header}</div>',
         unsafe_allow_html=True,
     )
 
@@ -693,10 +711,22 @@ def render_hitter_section(
         try:
             boxscore = get_boxscore(info["game_pk"])
         except Exception as e:
-            st.error(f"Could not load boxscore: {e}")
+            st.markdown(
+                f'<div style="background:#0D0D1A;border:1px solid #1a1a2e;border-left:3px solid #CC3433;'
+                f'border-radius:10px;padding:12px 16px;font-family:system-ui,sans-serif;'
+                f'font-size:0.85rem;color:#bbb;">Could not load boxscore: {e}</div>',
+                unsafe_allow_html=True,
+            )
             return
 
-    st.info(hitter_summary(boxscore, team_side))
+    summary = hitter_summary(boxscore, team_side)
+    st.markdown(
+        f'<div style="background:#0D0D1A;border:1px solid #1a1a2e;border-left:3px solid #0E3386;'
+        f'border-radius:10px;padding:14px 18px;">'
+        f'<p style="font-family:system-ui,sans-serif;font-size:0.86rem;color:#bbb;'
+        f'line-height:1.65;margin:0;">{summary}</p></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_game_result(
@@ -711,68 +741,110 @@ def render_game_result(
     status    = info["status"]
     team_name = info["home_name"] if info["team_is_home"] else info["away_name"]
 
+    # ── Result badge ──────────────────────────────────────────────────────────
     if status == "Final":
         if info["team_won"]:
-            bg     = f"{primary_color}20"
-            border = f"{primary_color}55"
-            gif_html = (
-                f'<img src="{win_gif_url}" style="height:60px;width:auto;border-radius:4px;" alt="Win">'
+            badge_bg  = primary_color
+            badge_txt = f"✓ {label}{team_name} Win!"
+            gif_html  = (
+                f'<img src="{win_gif_url}" style="height:48px;width:auto;border-radius:4px;vertical-align:middle;margin-left:12px;" alt="">'
                 if win_gif_url else ""
             )
-            st.markdown(
-                f'<div style="background-color:{bg};border:1px solid {border};border-radius:0.375rem;'
-                f'padding:1rem 1.25rem;display:flex;align-items:center;gap:1rem;">'
-                f'<span style="font-size:1.3rem;font-weight:700;color:{primary_color};">✅ {label}{team_name} win!</span>'
-                f'{gif_html}</div>',
-                unsafe_allow_html=True,
-            )
         else:
-            st.error(f"### ❌ {label}{team_name} lose.")
+            badge_bg  = "#CC3433"
+            badge_txt = f"✗ {label}{team_name} Lose."
+            gif_html  = ""
     else:
-        st.warning(f"### ⏳ {label}{info['detailed_status']}")
+        badge_bg  = "#c79a00"
+        badge_txt = f"⏳ {label}{info['detailed_status']}"
+        gif_html  = ""
 
+    st.markdown(
+        f'<div style="background:{badge_bg}22;border:1px solid {badge_bg}55;border-left:4px solid {badge_bg};'
+        f'border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;">'
+        f'<span style="font-family:system-ui,sans-serif;font-size:1.1rem;font-weight:700;color:#e8e8f0;">'
+        f'{badge_txt}</span>{gif_html}</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── Score card with logos ─────────────────────────────────────────────────
     away_logo = team_logo_url(info.get("away_id"))
     home_logo = team_logo_url(info.get("home_id"))
 
-    def _score_card(name, score, logo_url):
-        logo = f'<img src="{logo_url}" style="height:52px;width:auto;margin-bottom:6px;" alt="{name}">' if logo_url else ""
+    away_score = info["away_score"]
+    home_score = info["home_score"]
+    if status == "Final":
+        away_dim = home_score > away_score
+        home_dim = away_score > home_score
+    else:
+        away_dim = home_dim = False
+
+    def _score_card(name, score, logo_url, dim):
+        logo  = f'<img src="{logo_url}" style="height:52px;width:auto;margin-bottom:6px;opacity:{"0.35" if dim else "1"};" alt="{name}">' if logo_url else ""
+        color = "#3a3a5a" if dim else "#e8e8f0"
         return (
             f'<div style="text-align:center;padding:8px 0;">'
             f'{logo}'
-            f'<div style="font-size:0.85rem;color:#555;font-weight:600;margin-bottom:4px;">{name}</div>'
-            f'<div style="font-size:2.8rem;font-weight:800;line-height:1;">{score}</div>'
+            f'<div style="font-family:system-ui,sans-serif;font-size:0.75rem;color:#aaa;font-weight:700;'
+            f'letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">{name}</div>'
+            f'<div style="font-family:system-ui,sans-serif;font-size:3rem;font-weight:900;line-height:1;color:{color};">{score}</div>'
             f'</div>'
         )
 
     col1, col2, col3 = st.columns([2, 1, 2])
     with col1:
-        st.html(_score_card(info["away_name"], info["away_score"], away_logo))
+        st.html(_score_card(info["away_name"], away_score, away_logo, away_dim))
     with col2:
         st.markdown(
-            "<div style='text-align:center;padding-top:2rem;font-size:1.4rem'>vs</div>",
+            "<div style='text-align:center;padding-top:2rem;font-family:system-ui,sans-serif;"
+            "font-size:1rem;color:#667;'>@</div>",
             unsafe_allow_html=True,
         )
     with col3:
-        st.html(_score_card(info["home_name"], info["home_score"], home_logo))
+        st.html(_score_card(info["home_name"], home_score, home_logo, home_dim))
 
+    # ── Linescore ─────────────────────────────────────────────────────────────
     linescore = info.get("linescore", {})
     if linescore.get("innings"):
-        st.markdown("**Linescore**")
+        st.markdown(
+            '<div style="font-family:system-ui,sans-serif;font-size:0.62rem;font-weight:700;'
+            'letter-spacing:0.16em;text-transform:uppercase;color:#999;margin:16px 0 8px 0;">Linescore</div>',
+            unsafe_allow_html=True,
+        )
         st.html(build_linescore_html(
             linescore, info["home_name"], info["away_name"],
             info.get("home_id"), info.get("away_id"),
         ))
 
+    # ── Pitcher decisions ──────────────────────────────────────────────────────
     if status == "Final":
-        d1, d2, d3 = st.columns(3)
-        if info["winner"]: d1.markdown(f"**W:** {info['winner']}")
-        if info["loser"]:  d2.markdown(f"**L:** {info['loser']}")
-        if info["save"]:   d3.markdown(f"**SV:** {info['save']}")
+        winner, loser, save = info.get("winner"), info.get("loser"), info.get("save")
+        if winner or loser or save:
+            def _dec_card(badge, bg, border, label_txt, name):
+                return (
+                    f'<div style="flex:1;background:#0D0D1A;border:1px solid #1a1a2e;border-radius:10px;'
+                    f'padding:12px 16px;display:flex;align-items:center;gap:10px;">'
+                    f'<div style="width:32px;height:32px;border-radius:7px;flex-shrink:0;display:flex;'
+                    f'align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;'
+                    f'background:{bg};border:1px solid {border};font-family:system-ui,sans-serif;color:#fff;">{badge}</div>'
+                    f'<div><div style="font-family:system-ui,sans-serif;font-size:0.58rem;letter-spacing:0.14em;'
+                    f'text-transform:uppercase;color:#999;">{label_txt}</div>'
+                    f'<div style="font-family:system-ui,sans-serif;font-size:0.88rem;font-weight:700;'
+                    f'color:#ccc;margin-top:2px;">{name}</div></div></div>'
+                )
+            cards = ""
+            if winner: cards += _dec_card("W",  "rgba(14,51,134,0.5)",  "#0E3386", "Win",  winner)
+            if loser:  cards += _dec_card("L",  "rgba(204,52,51,0.4)",  "#CC3433", "Loss", loser)
+            if save:   cards += _dec_card("SV", "rgba(199,154,0,0.3)",  "#c79a00", "Save", save)
+            st.markdown(
+                f'<div style="display:flex;gap:10px;margin-top:12px;">{cards}</div>',
+                unsafe_allow_html=True,
+            )
 
     if show_record and info.get("team_record"):
         st.markdown(
-            f"<div style='font-size:1.4rem;font-weight:800;color:{primary_color};margin-top:0.5rem;'>"
-            f"Season Record: {info['team_record']}</div>",
+            f'<div style="font-family:system-ui,sans-serif;font-size:1.1rem;font-weight:800;'
+            f'color:{primary_color};margin-top:12px;">Season Record: {info["team_record"]}</div>',
             unsafe_allow_html=True,
         )
 
@@ -788,17 +860,41 @@ def _render_pitcher_stats(starter: dict, game_pk: int, season: int) -> None:
     w    = ss.get("wins", "—")
     l    = ss.get("losses", "—")
     whip = ss.get("whip", "—")
-    st.markdown(f"### {name}")
-    st.caption(f"{starter['team_name']} · Season: {w}–{l}, {era} ERA, {whip} WHIP")
+
+    # Pitcher header
+    st.markdown(
+        f'<div style="margin-bottom:14px;">'
+        f'<div style="font-family:system-ui,sans-serif;font-size:1.3rem;font-weight:800;'
+        f'color:#e8e8f0;letter-spacing:0.01em;margin-bottom:4px;">{name}</div>'
+        f'<div style="font-family:system-ui,sans-serif;font-size:0.73rem;color:#aaa;letter-spacing:0.05em;">'
+        f'{starter["team_name"]} &nbsp;·&nbsp; Season: {w}–{l} &nbsp;·&nbsp; {era} ERA &nbsp;·&nbsp; {whip} WHIP'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    # Stat grid helper
+    def _stat_grid(items):
+        cards = "".join(
+            f'<div style="background:#0D0D1A;border:1px solid #1a1a2e;border-radius:10px;'
+            f'padding:12px 14px;text-align:center;">'
+            f'<div style="font-size:0.58rem;letter-spacing:0.14em;text-transform:uppercase;'
+            f'color:#999;font-family:system-ui,sans-serif;margin-bottom:8px;">{lbl}</div>'
+            f'<div style="font-size:1.4rem;font-weight:700;color:#e8e8f0;line-height:1;'
+            f'font-family:system-ui,sans-serif;">{val}</div></div>'
+            for lbl, val in items
+        )
+        st.markdown(
+            f'<div style="display:grid;grid-template-columns:repeat({len(items)},1fr);'
+            f'gap:8px;margin-bottom:10px;">{cards}</div>',
+            unsafe_allow_html=True,
+        )
 
     ip = stats.get("inningsPitched", "—")
     k  = stats.get("strikeOuts", "—")
     bb = stats.get("baseOnBalls", "—")
     er = stats.get("earnedRuns", "—")
     h  = stats.get("hits", "—")
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("IP", ip); c2.metric("K", k); c3.metric("BB", bb)
-    c4.metric("ER", er); c5.metric("H", h)
+    _stat_grid([("IP", ip), ("K", k), ("BB", bb), ("ER", er), ("H", h)])
 
     pitches = stats.get("numberOfPitches", 0)
     strikes = stats.get("strikes", 0)
@@ -808,21 +904,37 @@ def _render_pitcher_stats(starter: dict, game_pk: int, season: int) -> None:
         f"{round(int(strikes) / int(pitches) * 100)}%"
         if pitches and strikes else "—"
     )
-    c6, c7, c8, c9 = st.columns(4)
-    c6.metric("Pitches", pitches or "—"); c7.metric("Strike%", strike_pct)
-    c8.metric("HR", hr); c9.metric("Batters Faced", bf)
+    _stat_grid([("Pitches", pitches or "—"), ("Strike%", strike_pct), ("HR", hr), ("Batters", bf)])
 
-    st.divider()
+    st.markdown('<div style="border-top:1px solid #1a1a2e;margin:16px 0;"></div>', unsafe_allow_html=True)
 
     with st.spinner("Loading pitch data…"):
         try:
             usage = get_pitch_usage(game_pk, pid)
         except Exception as e:
-            st.caption(f"*Pitch data unavailable: {e}*")
+            st.markdown(
+                f'<div style="font-family:system-ui,sans-serif;font-size:0.8rem;color:#888;font-style:italic;">'
+                f'Pitch data unavailable: {e}</div>',
+                unsafe_allow_html=True,
+            )
             usage = {}
 
-    st.info(pitcher_summary(name, stats, usage))
-    st.markdown("**Pitch Usage — Last Night**")
+    # Performance summary
+    summary = pitcher_summary(name, stats, usage)
+    st.markdown(
+        f'<div style="background:#0D0D1A;border:1px solid #1a1a2e;border-left:3px solid #0E3386;'
+        f'border-radius:10px;padding:12px 16px;margin-bottom:4px;">'
+        f'<p style="font-family:system-ui,sans-serif;font-size:0.86rem;color:#bbb;'
+        f'line-height:1.65;margin:0;">{summary}</p></div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        '<div style="font-family:system-ui,sans-serif;font-size:0.62rem;font-weight:700;'
+        'letter-spacing:0.16em;text-transform:uppercase;color:#999;margin:16px 0 8px 0;">'
+        'Pitch Usage — Last Night</div>',
+        unsafe_allow_html=True,
+    )
     st.html(build_pitch_usage_html(usage))
 
     if usage:
@@ -842,10 +954,19 @@ def _render_pitcher_stats(starter: dict, game_pk: int, season: int) -> None:
                 date_label = fmt_date(prev_date)
                 opp_label  = f" vs {prev_opp}" if prev_opp else ""
                 prev_label = f"{date_label}{opp_label}"
-                st.markdown(f"**Pitch Comparison — Last Night vs {prev_label}**")
+                st.markdown(
+                    f'<div style="font-family:system-ui,sans-serif;font-size:0.62rem;font-weight:700;'
+                    f'letter-spacing:0.16em;text-transform:uppercase;color:#999;margin:16px 0 8px 0;">'
+                    f'Pitch Comparison — Last Night vs {prev_label}</div>',
+                    unsafe_allow_html=True,
+                )
                 st.html(build_pitch_comparison_html(usage, prev_usage, prev_label))
         elif not prev_pk:
-            st.caption("*No previous start found to compare.*")
+            st.markdown(
+                '<div style="font-family:system-ui,sans-serif;font-size:0.78rem;'
+                'color:#999;font-style:italic;margin-top:8px;">No previous start found to compare.</div>',
+                unsafe_allow_html=True,
+            )
 
 
 def render_pitcher_section(
@@ -859,7 +980,9 @@ def render_pitcher_section(
     team_side = "home" if info["team_is_home"] else "away"
 
     st.markdown(
-        f"<h3 style='color:{header_color};margin-top:0;'>{section_header}</h3>",
+        f'<div style="font-family:system-ui,sans-serif;font-size:0.62rem;font-weight:700;'
+        f'letter-spacing:0.16em;text-transform:uppercase;color:{header_color};margin:20px 0 12px 0;">'
+        f'{section_header}</div>',
         unsafe_allow_html=True,
     )
 
@@ -867,19 +990,33 @@ def render_pitcher_section(
         try:
             boxscore = get_boxscore(game_pk)
         except Exception as e:
-            st.error(f"Could not load boxscore: {e}")
+            st.markdown(
+                f'<div style="background:#0D0D1A;border:1px solid #1a1a2e;border-left:3px solid #CC3433;'
+                f'border-radius:10px;padding:12px 16px;font-family:system-ui,sans-serif;'
+                f'font-size:0.85rem;color:#bbb;">Could not load boxscore: {e}</div>',
+                unsafe_allow_html=True,
+            )
             return
 
     starter = get_starter(boxscore, team_side)
     if starter["id"]:
         _render_pitcher_stats(starter, game_pk, season)
     else:
-        st.info("No starting pitcher data available.")
+        st.markdown(
+            '<div style="background:#0D0D1A;border:1px solid #1a1a2e;border-radius:10px;'
+            'padding:12px 16px;font-family:system-ui,sans-serif;font-size:0.85rem;color:#bbb;">'
+            'No starting pitcher data available.</div>',
+            unsafe_allow_html=True,
+        )
 
 
 def render_next_game(team_id: int, team_name: str) -> None:
     """Render the tomorrow's game section."""
-    st.markdown("#### Tomorrow")
+    st.markdown(
+        '<div style="font-family:system-ui,sans-serif;font-size:0.62rem;font-weight:700;'
+        'letter-spacing:0.16em;text-transform:uppercase;color:#999;margin-bottom:10px;">Tomorrow</div>',
+        unsafe_allow_html=True,
+    )
     tomorrow = date.today() + timedelta(days=1)
     try:
         next_game = get_next_team_game(team_id, tomorrow.strftime("%Y-%m-%d"))
@@ -903,12 +1040,18 @@ def render_next_game(team_id: int, team_name: str) -> None:
             f'<img src="{opp_logo_url}" style="height:36px;width:auto;vertical-align:middle;margin-right:8px;" alt="">'
             if opp_logo_url else ""
         )
-        time_tag = f' <span style="color:#666;font-size:0.9rem;">· {time_display}</span>' if time_display else ""
+        time_tag = (
+            f' <span style="font-family:system-ui,sans-serif;color:#aaa;font-size:0.88rem;">· {time_display}</span>'
+            if time_display else ""
+        )
         st.markdown(
-            f'<div style="font-size:1.1rem;font-weight:600;">'
+            f'<div style="font-family:system-ui,sans-serif;font-size:1rem;font-weight:600;color:#e8e8f0;">'
             f'{logo_tag}{team_name} {loc_word} {next_game["opp_name"]}{time_tag}'
             f'</div>',
             unsafe_allow_html=True,
         )
     else:
-        st.markdown("🏖️ Off Day")
+        st.markdown(
+            '<div style="font-family:system-ui,sans-serif;font-size:0.9rem;color:#888;">🏖️ Off Day</div>',
+            unsafe_allow_html=True,
+        )
