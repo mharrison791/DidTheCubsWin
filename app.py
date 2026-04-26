@@ -1,8 +1,9 @@
 import streamlit as st
+from utils import TABLE_CSS
 
 st.set_page_config(page_title="Cubs Win Checker", page_icon="⚾", layout="wide")
 
-st.markdown("""
+st.markdown(f"""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
 
@@ -192,6 +193,9 @@ st.markdown("""
   [data-testid="stSidebar"] li {
       color: #555 !important;
   }
+
+  /* ── Stat tables (linescore, pitch usage, pitch comparison) ──── */
+  {TABLE_CSS}
 </style>
 """, unsafe_allow_html=True)
 

@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 from datetime import date, timedelta, datetime, timezone
+from zoneinfo import ZoneInfo
 
 CUBS_TEAM_ID = 112
 MLB_API_BASE = "https://statsapi.mlb.com/api/v1"
@@ -145,7 +146,11 @@ def pitch_color(code: str) -> str:
 
 
 def ip_to_float(ip_str) -> float:
-    """Convert MLB innings-pitched string ('6.2' = 6⅔) to a float."""
+    """Convert MLB innings-pitched string ('6.2' = 6⅔) to a float.
+
+    MLB encodes outs as tenths: .1 = one out (⅓ inning), .2 = two outs (⅔).
+    Dividing by 3 converts to the true fractional inning value.
+    """
     try:
         parts = str(ip_str).split(".")
         return int(parts[0]) + (int(parts[1]) / 3 if len(parts) > 1 else 0)
@@ -174,12 +179,6 @@ def get_team_games(team_id: int, date_str: str) -> list:
     resp.raise_for_status()
     dates = resp.json().get("dates", [])
     return dates[0].get("games", []) if dates else []
-
-
-@st.cache_data(ttl=300)
-def get_cubs_games(date_str: str) -> list:
-    """Return all Cubs games on the given date string (YYYY-MM-DD)."""
-    return get_team_games(CUBS_TEAM_ID, date_str)
 
 
 @st.cache_data(ttl=300)
@@ -272,12 +271,6 @@ def get_next_team_game(team_id: int, date_str: str) -> dict | None:
         "team_is_home":  team_is_home,
         "game_time_utc": game.get("gameDate", ""),
     }
-
-
-@st.cache_data(ttl=300)
-def get_next_cubs_game(date_str: str) -> dict | None:
-    """Return info about the Cubs' game on date_str, or None if off day."""
-    return get_next_team_game(CUBS_TEAM_ID, date_str)
 
 
 # ── Parsing ───────────────────────────────────────────────────────────────────
@@ -415,6 +408,40 @@ def pitcher_summary(name: str, stats: dict, usage: dict) -> str:
 
 # ── HTML builders ─────────────────────────────────────────────────────────────
 
+# Shared CSS for all stat tables — injected once via app.py's global stylesheet.
+TABLE_CSS = """
+  .ls{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.83rem;font-family:monospace}
+  .ls th,.ls td{text-align:center;padding:8px 4px;border:1px solid #1a1a2e;white-space:nowrap;overflow:hidden}
+  .ls .team{text-align:left;font-weight:600;padding-left:10px;width:22%;text-overflow:ellipsis;color:#bbb}
+  .ls th{background:#111127;font-weight:700;color:#444;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}
+  .ls td{color:#bbb;background:#0D0D1A}
+  .ls .rhe-h{background:#0A0A1F;font-weight:700;color:#444}
+  .ls .rhe{background:#111127;font-weight:700;color:#e8e8f0}
+  .ls tr:last-child td{border-top:1px solid #1e2d5a}
+
+  .pu{width:100%;border-collapse:collapse;font-size:.85rem}
+  .pu th{text-align:left;padding:8px 10px;background:#111127;font-weight:700;
+          border-bottom:1px solid #1a1a2e;color:#444;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}
+  .pu td{padding:8px 10px;border-bottom:1px solid #1a1a2e;vertical-align:middle;background:#0D0D1A;color:#bbb}
+  .pd{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .pc{color:#333;font-size:.75rem}
+  .pv{text-align:right;width:50px;font-variant-numeric:tabular-nums;color:#e8e8f0}
+  .pb{width:140px}
+  .bw{position:relative;background:#1a1a2e;border-radius:3px;height:18px}
+  .bf{height:100%;border-radius:3px;opacity:.85}
+  .bl{position:absolute;right:4px;top:1px;font-size:.75rem;font-weight:600;color:#e8e8f0}
+  .pvl{text-align:right;color:#444;font-size:.8rem;width:80px}
+
+  .cp{width:100%;border-collapse:collapse;font-size:.85rem}
+  .cp th{padding:8px 10px;background:#111127;border-bottom:1px solid #1a1a2e;font-weight:700;
+          font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#444}
+  .cp td{padding:8px 10px;border-bottom:1px solid #1a1a2e;vertical-align:middle;
+          background:#0D0D1A;color:#bbb}
+  .cpd{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  .cpv{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;color:#e8e8f0}
+"""
+
+
 def build_linescore_html(
     linescore: dict,
     home_name: str,
@@ -458,21 +485,12 @@ def build_linescore_html(
 
     hdrs = "".join(f"<th>{i+1}</th>" for i in range(n))
     hrow = f'<tr><th class="team"></th>{hdrs}<th class="rhe-h">R</th><th class="rhe-h">H</th><th class="rhe-h">E</th></tr>'
-    return f"""
-<style>
-  .ls{{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.83rem;font-family:monospace}}
-  .ls th,.ls td{{text-align:center;padding:8px 4px;border:1px solid #1a1a2e;white-space:nowrap;overflow:hidden}}
-  .ls .team{{text-align:left;font-weight:600;padding-left:10px;width:22%;text-overflow:ellipsis;color:#bbb}}
-  .ls th{{background:#111127;font-weight:700;color:#444;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}}
-  .ls td{{color:#bbb;background:#0D0D1A}}
-  .ls .rhe-h{{background:#0A0A1F;font-weight:700;color:#444}}
-  .ls .rhe{{background:#111127;font-weight:700;color:#e8e8f0}}
-  .ls tr:last-child td{{border-top:1px solid #1e2d5a}}
-</style>
-<table class="ls">
-  <thead>{hrow}</thead>
-  <tbody>{row(away_name, away_r, ta, away_id)}{row(home_name, home_r, th, home_id)}</tbody>
-</table>"""
+    return (
+        f'<table class="ls">'
+        f'<thead>{hrow}</thead>'
+        f'<tbody>{row(away_name, away_r, ta, away_id)}{row(home_name, home_r, th, home_id)}</tbody>'
+        f'</table>'
+    )
 
 
 def build_pitch_usage_html(usage: dict) -> str:
@@ -493,25 +511,12 @@ def build_pitch_usage_html(usage: dict) -> str:
           <td class="pb"><div class="bw"><div class="bf" style="width:{pct}%;background:{col}"></div>
             <span class="bl">{pct}%</span></div></td>
           <td class="pvl">{velo}</td></tr>"""
-    return f"""
-<style>
-  .pu{{width:100%;border-collapse:collapse;font-size:.85rem}}
-  .pu th{{text-align:left;padding:8px 10px;background:#111127;font-weight:700;
-          border-bottom:1px solid #1a1a2e;color:#444;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}}
-  .pu td{{padding:8px 10px;border-bottom:1px solid #1a1a2e;vertical-align:middle;background:#0D0D1A;color:#bbb}}
-  .pd{{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}}
-  .pc{{color:#333;font-size:.75rem}}
-  .pv{{text-align:right;width:50px;font-variant-numeric:tabular-nums;color:#e8e8f0}}
-  .pb{{width:140px}}
-  .bw{{position:relative;background:#1a1a2e;border-radius:3px;height:18px}}
-  .bf{{height:100%;border-radius:3px;opacity:.85}}
-  .bl{{position:absolute;right:4px;top:1px;font-size:.75rem;font-weight:600;color:#e8e8f0}}
-  .pvl{{text-align:right;color:#444;font-size:.8rem;width:80px}}
-</style>
-<table class="pu">
-  <thead><tr><th>Pitch</th><th style="text-align:right">Count</th><th>Usage</th><th style="text-align:right">Avg Velo</th></tr></thead>
-  <tbody>{rows}</tbody>
-</table>"""
+    return (
+        f'<table class="pu">'
+        f'<thead><tr><th>Pitch</th><th style="text-align:right">Count</th><th>Usage</th><th style="text-align:right">Avg Velo</th></tr></thead>'
+        f'<tbody>{rows}</tbody>'
+        f'</table>'
+    )
 
 
 def build_pitch_comparison_html(now: dict, prev: dict, prev_label: str) -> str:
@@ -552,24 +557,16 @@ def build_pitch_comparison_html(now: dict, prev: dict, prev_label: str) -> str:
           <td class="cpn"><span class="cpd" style="background:{col}"></span>{desc}</td>
           <td class="cpv">{now_cell}</td>
           <td class="cpv">{prev_cell}</td></tr>"""
-    return f"""
-<style>
-  .cp{{width:100%;border-collapse:collapse;font-size:.85rem}}
-  .cp th{{padding:8px 10px;background:#111127;border-bottom:1px solid #1a1a2e;font-weight:700;
-          font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#444}}
-  .cp td{{padding:8px 10px;border-bottom:1px solid #1a1a2e;vertical-align:middle;
-          background:#0D0D1A;color:#bbb}}
-  .cpd{{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}}
-  .cpv{{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;color:#e8e8f0}}
-</style>
-<table class="cp">
-  <thead><tr>
-    <th>Pitch</th>
-    <th style="text-align:right">Last Night</th>
-    <th style="text-align:right">{prev_label}</th>
-  </tr></thead>
-  <tbody>{rows}</tbody>
-</table>"""
+    return (
+        f'<table class="cp">'
+        f'<thead><tr>'
+        f'<th>Pitch</th>'
+        f'<th style="text-align:right">Last Night</th>'
+        f'<th style="text-align:right">{prev_label}</th>'
+        f'</tr></thead>'
+        f'<tbody>{rows}</tbody>'
+        f'</table>'
+    )
 
 
 # ── Rendering helpers ─────────────────────────────────────────────────────────
@@ -820,7 +817,8 @@ def _render_pitcher_stats(starter: dict, game_pk: int, season: int) -> None:
     with st.spinner("Loading pitch data…"):
         try:
             usage = get_pitch_usage(game_pk, pid)
-        except Exception:
+        except Exception as e:
+            st.caption(f"*Pitch data unavailable: {e}*")
             usage = {}
 
     st.info(pitcher_summary(name, stats, usage))
@@ -896,9 +894,8 @@ def render_next_game(team_id: int, team_name: str) -> None:
         if game_time_utc:
             try:
                 gt = datetime.fromisoformat(game_time_utc.replace("Z", "+00:00"))
-                offset_hours = -5 if 3 <= gt.month <= 11 else -6
-                ct = gt + timedelta(hours=offset_hours)
-                tz_label = "CDT" if offset_hours == -5 else "CST"
+                ct = gt.astimezone(ZoneInfo("America/Chicago"))
+                tz_label = ct.strftime("%Z")
                 time_display = ct.strftime("%I:%M %p").lstrip("0") + f" {tz_label}"
             except Exception:
                 pass
