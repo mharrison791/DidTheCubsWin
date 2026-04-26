@@ -5,6 +5,22 @@ from datetime import datetime
 CUBS_TEAM_ID = 112
 MLB_API_BASE = "https://statsapi.mlb.com/api/v1"
 
+# ESPN team logo CDN — maps MLB team ID → ESPN abbreviation
+_ESPN_ABBREV = {
+    108: "laa", 109: "ari", 110: "bal", 111: "bos", 112: "chc",
+    113: "cin", 114: "cle", 115: "col", 116: "det", 117: "hou",
+    118: "kc",  119: "lad", 120: "wsh", 121: "nym", 133: "oak",
+    134: "pit", 135: "sd",  136: "sea", 137: "sf",  138: "stl",
+    139: "tb",  140: "tex", 141: "tor", 142: "min", 143: "phi",
+    144: "atl", 145: "chw", 146: "mia", 147: "nyy", 158: "mil",
+}
+
+def team_logo_url(team_id: int) -> str:
+    abbrev = _ESPN_ABBREV.get(team_id, "")
+    if not abbrev:
+        return ""
+    return f"https://a.espncdn.com/combiner/i?img=/i/teamlogos/mlb/500/{abbrev}.png&w=120&h=120&transparent=true"
+
 # ── Pitch type colours ────────────────────────────────────────────────────────
 PITCH_COLORS = {
     "FF": "#e74c3c",  # Four-Seam Fastball
@@ -146,9 +162,11 @@ def parse_game(game: dict) -> dict:
     cubs_score = home_score if cubs_are_home else away_score
     opp_score  = away_score if cubs_are_home else home_score
 
-    home_name = home.get("team", {}).get("name", "Home")
-    away_name = away.get("team", {}).get("name", "Away")
-    opp_name  = away_name if cubs_are_home else home_name
+    home_name    = home.get("team", {}).get("name", "Home")
+    away_name    = away.get("team", {}).get("name", "Away")
+    opp_name     = away_name if cubs_are_home else home_name
+    home_team_id = home.get("team", {}).get("id")
+    away_team_id = away.get("team", {}).get("id")
 
     decisions = game.get("decisions", {})
     return {
@@ -169,6 +187,8 @@ def parse_game(game: dict) -> dict:
         "loser":           decisions.get("loser",  {}).get("fullName"),
         "save":            decisions.get("save",   {}).get("fullName"),
         "linescore":       game.get("linescore", {}),
+        "home_team_id":    home_team_id,
+        "away_team_id":    away_team_id,
     }
 
 
@@ -296,9 +316,9 @@ def build_linescore_html(linescore: dict, home_name: str, away_name: str) -> str
   .ls{{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.83rem;font-family:monospace}}
   .ls th,.ls td{{text-align:center;padding:8px 4px;border:1px solid #1a1a2e;white-space:nowrap;overflow:hidden}}
   .ls .team{{text-align:left;font-weight:600;padding-left:10px;width:22%;text-overflow:ellipsis;color:#bbb}}
-  .ls th{{background:#111127;font-weight:700;color:#444;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}}
+  .ls th{{background:#111127;font-weight:700;color:#999;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}}
   .ls td{{color:#bbb;background:#0D0D1A}}
-  .ls .rhe-h{{background:#0A0A1F;font-weight:700;color:#444}}
+  .ls .rhe-h{{background:#0A0A1F;font-weight:700;color:#999}}
   .ls .rhe{{background:#111127;font-weight:700;color:#e8e8f0}}
   .ls tr:last-child td{{border-top:1px solid #1e2d5a}}
 </style>
@@ -330,16 +350,16 @@ def build_pitch_usage_html(usage: dict) -> str:
 <style>
   .pu{{width:100%;border-collapse:collapse;font-size:.85rem}}
   .pu th{{text-align:left;padding:8px 10px;background:#111127;font-weight:700;
-          border-bottom:1px solid #1a1a2e;color:#444;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}}
+          border-bottom:1px solid #1a1a2e;color:#999;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}}
   .pu td{{padding:8px 10px;border-bottom:1px solid #1a1a2e;vertical-align:middle;background:#0D0D1A;color:#bbb}}
   .pd{{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}}
-  .pc{{color:#333;font-size:.75rem}}
+  .pc{{color:#999;font-size:.75rem}}
   .pv{{text-align:right;width:50px;font-variant-numeric:tabular-nums;color:#e8e8f0}}
   .pb{{width:140px}}
   .bw{{position:relative;background:#1a1a2e;border-radius:3px;height:18px}}
   .bf{{height:100%;border-radius:3px;opacity:.85}}
   .bl{{position:absolute;right:4px;top:1px;font-size:.75rem;font-weight:600;color:#e8e8f0}}
-  .pvl{{text-align:right;color:#444;font-size:.8rem;width:80px}}
+  .pvl{{text-align:right;color:#999;font-size:.8rem;width:80px}}
 </style>
 <table class="pu">
   <thead><tr><th>Pitch</th><th style="text-align:right">Count</th><th>Usage</th><th style="text-align:right">Avg Velo</th></tr></thead>
@@ -387,7 +407,7 @@ def build_pitch_comparison_html(now: dict, prev: dict, prev_label: str) -> str:
 <style>
   .cp{{width:100%;border-collapse:collapse;font-size:.85rem}}
   .cp th{{padding:8px 10px;background:#111127;border-bottom:1px solid #1a1a2e;font-weight:700;
-          font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#444}}
+          font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#999}}
   .cp td{{padding:8px 10px;border-bottom:1px solid #1a1a2e;vertical-align:middle;
           background:#0D0D1A;color:#bbb}}
   .cpd{{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}}
