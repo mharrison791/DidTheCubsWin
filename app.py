@@ -1,8 +1,9 @@
 import streamlit as st
+from utils import TABLE_CSS
 
 st.set_page_config(page_title="Cubs Win Checker", page_icon="⚾", layout="wide")
 
-st.markdown("""
+st.markdown(f"""
 <style>
   /* ── App background ──────────────────────────────────────────── */
   .stApp,
@@ -124,6 +125,17 @@ st.markdown("""
   }
   [data-testid="stSidebarCollapseButton"] svg { fill: #555 !important; }
   [data-testid="stSidebarCollapseButton"]:hover { background: #0E3386 !important; }
+
+  /* ── Sidebar generic text ────────────────────────────────────── */
+  [data-testid="stSidebar"] p,
+  [data-testid="stSidebar"] span,
+  [data-testid="stSidebar"] label,
+  [data-testid="stSidebar"] li {
+      color: #aaa !important;
+  }
+
+  /* ── Stat tables (linescore, pitch usage, pitch comparison) ──── */
+  {TABLE_CSS}
 </style>
 """, unsafe_allow_html=True)
 
