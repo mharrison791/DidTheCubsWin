@@ -347,3 +347,44 @@ for tab, info in zip(tabs, parsed):
 
 if final_parsed and all(g["cubs_won"] for g in final_parsed):
     st.balloons()
+
+# ── Tomorrow's game ────────────────────────────────────────────────────────────
+
+st.divider()
+st.markdown("#### Tomorrow")
+tomorrow = date.today() + timedelta(days=1)
+try:
+    next_game = get_next_cubs_game(tomorrow.strftime("%Y-%m-%d"))
+except Exception:
+    next_game = None
+
+if next_game:
+    opp_logo_url = team_logo_url(next_game["opp_id"])
+    loc_word = "vs" if next_game["cubs_are_home"] else "@"
+
+    # Parse game time to Central Time
+    time_display = ""
+    game_time_utc = next_game.get("game_time_utc", "")
+    if game_time_utc:
+        try:
+            gt = datetime.fromisoformat(game_time_utc.replace("Z", "+00:00"))
+            offset_hours = -5 if 3 <= gt.month <= 11 else -6
+            ct = gt + timedelta(hours=offset_hours)
+            tz_label = "CDT" if offset_hours == -5 else "CST"
+            time_display = ct.strftime("%I:%M %p").lstrip("0") + f" {tz_label}"
+        except Exception:
+            pass
+
+    logo_tag = (
+        f'<img src="{opp_logo_url}" style="height:36px;width:auto;vertical-align:middle;margin-right:8px;" alt="">'
+        if opp_logo_url else ""
+    )
+    time_tag = f' <span style="color:#666;font-size:0.9rem;">· {time_display}</span>' if time_display else ""
+    st.markdown(
+        f'<div style="font-size:1.1rem;font-weight:600;">'
+        f'{logo_tag}Cubs {loc_word} {next_game["opp_name"]}{time_tag}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown("🏖️ Off Day")

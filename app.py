@@ -127,8 +127,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-home_page    = st.Page("pages/home.py",           title="Home",           icon="🏠")
-pitcher_page = st.Page("pages/pitcher_report.py", title="Pitcher Report", icon="⚾")
+cubs_page    = st.Page("pages/cubs.py",    title="Did the Cubs Win?", icon="🐻")
+my_team_page = st.Page("pages/my_team.py", title="Did My Team Win?",  icon="⚾")
 
-pg = st.navigation([home_page, pitcher_page])
+pg = st.navigation([cubs_page, my_team_page])
 pg.run()
