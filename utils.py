@@ -1,3 +1,4 @@
+import re
 import streamlit as st
 import requests
 from datetime import date, timedelta, datetime, timezone
@@ -719,7 +720,7 @@ def render_hitter_section(
             )
             return
 
-    summary = hitter_summary(boxscore, team_side)
+    summary = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', hitter_summary(boxscore, team_side))
     st.markdown(
         f'<div style="background:#0D0D1A;border:1px solid #1a1a2e;border-left:3px solid #0E3386;'
         f'border-radius:10px;padding:14px 18px;">'
