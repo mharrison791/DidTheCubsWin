@@ -3,7 +3,7 @@ from utils import TABLE_CSS
 
 st.set_page_config(page_title="Cubs Win Checker", page_icon="⚾", layout="wide")
 
-st.markdown(f"""
+st.markdown("""
 <style>
   /* ── App background ──────────────────────────────────────────── */
   .stApp,
@@ -28,12 +28,11 @@ st.markdown(f"""
   .stApp, [data-testid="stMain"] { color: #e8e8f0 !important; }
   p, span, div { color: inherit; }
 
-  /* ── Alerts (st.error only, for real errors) ─────────────────── */
+  /* ── Alerts ──────────────────────────────────────────────────── */
   [data-testid="stAlertContainer"] {
       background: #0D0D1A !important;
       border-radius: 10px !important;
       border: 1px solid #1a1a2e !important;
-      border-left: 3px solid #CC3433 !important;
   }
   [data-testid="stAlertContainer"] p,
   [data-testid="stAlertContainer"] span { color: #e8e8f0 !important; }
@@ -134,10 +133,11 @@ st.markdown(f"""
       color: #aaa !important;
   }
 
-  /* ── Stat tables (linescore, pitch usage, pitch comparison) ──── */
-  {TABLE_CSS}
 </style>
 """, unsafe_allow_html=True)
+
+# Inject table CSS separately (avoids f-string brace conflicts with CSS syntax)
+st.markdown(f"<style>{TABLE_CSS}</style>", unsafe_allow_html=True)
 
 cubs_page    = st.Page("pages/cubs.py",    title="Did the Cubs Win?", icon="🐻")
 my_team_page = st.Page("pages/my_team.py", title="Did My Team Win?",  icon="⚾")
